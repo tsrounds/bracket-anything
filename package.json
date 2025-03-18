@@ -11,6 +11,7 @@
     "create-test-quiz": "ts-node scripts/create-test-quiz.ts"
   },
   "dependencies": {
+    "@emotion/is-prop-valid": "^1.3.1",
     "crypto-browserify": "^3.12.1",
     "firebase": "^10.8.0",
     "framer-motion": "^12.5.0",
