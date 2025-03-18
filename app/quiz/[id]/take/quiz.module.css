@@ -1,0 +1,53 @@
+.quiz-container {
+  /* Prevent any external styles from affecting the container */
+  isolation: isolate;
+  contain: layout size;
+}
+
+.quiz-cover {
+  /* Ensure cover image maintains aspect ratio */
+  aspect-ratio: 316/202;
+}
+
+.quiz-question-section {
+  /* Prevent layout shifts */
+  contain: layout;
+}
+
+.quiz-content {
+  /* Ensure smooth transitions */
+  will-change: opacity;
+}
+
+.quiz-title {
+  /* Prevent text wrapping and maintain consistent height */
+  min-height: 2.5rem;
+  line-height: 1.25;
+}
+
+.quiz-options {
+  /* Prevent layout shifts */
+  contain: layout;
+}
+
+.quiz-option {
+  /* Ensure consistent button dimensions */
+  min-width: 18rem;
+  max-width: 18rem;
+}
+
+.quiz-submit {
+  /* Ensure consistent button positioning */
+  margin-top: 1.125rem;
+}
+
+/* Prevent any external styles from affecting quiz elements */
+.quiz-container * {
+  box-sizing: border-box;
+}
+
+/* Ensure consistent font rendering */
+.quiz-container {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+} 

@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm;
+  }
+  
+  .btn-primary {
+    @apply bg-blue-500 text-white hover:bg-blue-600;
+  }
+  
+  .btn-danger {
+    @apply bg-red-500 text-white hover:bg-red-600;
+  }
+  
+  .btn-success {
+    @apply bg-emerald-500 text-white hover:bg-emerald-600;
+  }
+  
+  .btn-secondary {
+    @apply bg-indigo-500 text-white hover:bg-indigo-600;
+  }
+
+  .form-input {
+    @apply w-full p-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-lg;
+  }
+
+  .form-label {
+    @apply block text-lg font-medium text-gray-700 mb-3;
+  }
+
+  .card {
+    @apply bg-white p-8 rounded-xl shadow-md border border-gray-200 transition-all hover:shadow-lg;
+  }
+
+  .quiz-card {
+    @apply mb-4 p-5 border border-gray-200 rounded-lg bg-white shadow-sm hover:shadow-md transition-all;
+  }
+}
+
+@keyframes ripple {
+  0% {
+    width: 0;
+    height: 0;
+    opacity: 0.5;
+  }
+  100% {
+    width: 500px;
+    height: 500px;
+    opacity: 0;
+  }
+}
+
+.animate-ripple {
+  position: absolute;
+  border-radius: 50%;
+  transform: scale(0);
+  animation: ripple 0.6s linear;
+  background-color: rgba(255, 255, 255, 0.1);
+}

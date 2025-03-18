@@ -1,0 +1,411 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { db } from '../../../lib/firebase/firebase-client';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+
+interface Question {
+  id: string;
+  text: string;
+  type: 'multiple' | 'open';
+  points: number;
+  options?: string[];
+}
+
+interface Quiz {
+  id: string;
+  title: string;
+  coverImage?: string;
+  questions: Question[];
+  correctAnswers?: Record<string, string>;
+  status: 'in-progress' | 'completed';
+}
+
+interface Submission {
+  userId: string;
+  userName: string;
+  answers: Record<string, string>;
+  submittedAt: string;
+  score?: number;
+}
+
+function ResultsModal({ 
+  isOpen, 
+  onClose, 
+  submission, 
+  quiz 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  submission: Submission; 
+  quiz: Quiz;
+}) {
+  if (!isOpen) return null;
+
+  const totalPoints = quiz.questions.reduce((sum, q) => sum + q.points, 0);
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">Results for {submission.userName}</h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Submitted on {new Date(submission.submittedAt).toLocaleString()}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-500"
+          >
+            <span className="sr-only">Close</span>
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {quiz.questions.map((question) => {
+            const userAnswer = submission.answers[question.id];
+            const correctAnswer = quiz.correctAnswers?.[question.id];
+            const isCorrect = userAnswer === correctAnswer;
+
+            return (
+              <div 
+                key={question.id} 
+                className={`p-4 rounded-lg border ${
+                  isCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
+                }`}
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="text-gray-900 font-medium">{question.text}</h3>
+                  <span className={`px-2 py-1 rounded text-sm font-medium ${
+                    isCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                  }`}>
+                    {isCorrect ? `+${question.points}` : '0'} points
+                  </span>
+                </div>
+                <div className="space-y-1 text-sm">
+                  <p className="text-gray-600">
+                    Answer: <span className="font-medium">{userAnswer}</span>
+                  </p>
+                  {quiz.status === 'completed' && (
+                    <p className="text-gray-600">
+                      Correct answer: <span className="font-medium">{correctAnswer}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function ThankYouPage({ params }: { params: { id: string } }) {
+  const [quiz, setQuiz] = useState<Quiz | null>(null);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [userSubmission, setUserSubmission] = useState<Submission | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+
+  useEffect(() => {
+    const fetchQuizAndSubmissions = async () => {
+      try {
+        // Get quiz data
+        const quizDoc = await getDoc(doc(db, 'quizzes', params.id));
+        if (quizDoc.exists()) {
+          const quizData = { id: quizDoc.id, ...quizDoc.data() } as Quiz;
+          setQuiz(quizData);
+
+          // Get all submissions for this quiz
+          const submissionsQuery = query(
+            collection(db, 'submissions'),
+            where('quizId', '==', params.id)
+          );
+          const submissionsSnapshot = await getDocs(submissionsQuery);
+          
+          const allSubmissions = submissionsSnapshot.docs.map(doc => {
+            const data = doc.data() as Submission;
+            // Calculate score if quiz is completed and has correct answers
+            if (quizData.status === 'completed' && quizData.correctAnswers) {
+              let score = 0;
+              Object.entries(data.answers).forEach(([questionId, answer]) => {
+                const question = quizData.questions.find(q => q.id === questionId);
+                if (question && quizData.correctAnswers?.[questionId] === answer) {
+                  score += question.points;
+                }
+              });
+              data.score = score;
+            }
+            return data;
+          });
+
+          // Sort submissions by score (if completed) or submission time
+          const sortedSubmissions = allSubmissions.sort((a, b) => {
+            if (a.score !== undefined && b.score !== undefined) {
+              return b.score - a.score;
+            }
+            return new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime();
+          });
+
+          setSubmissions(sortedSubmissions);
+
+          // Find user's submission
+          const userName = sessionStorage.getItem('userName');
+          const userSub = sortedSubmissions.find(sub => sub.userName === userName);
+          if (userSub) {
+            setUserSubmission(userSub);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchQuizAndSubmissions();
+  }, [params.id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (!quiz) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Quiz Not Found</h1>
+          <p className="text-gray-600">The quiz you're looking for doesn't exist or has been removed.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const totalPoints = quiz.questions.reduce((sum, q) => sum + q.points, 0);
+  const userScore = userSubmission?.score;
+  const userRank = userSubmission ? submissions.findIndex(s => s.userName === userSubmission.userName) + 1 : null;
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto">
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+          {/* Quiz Cover Image */}
+          <div className="w-full h-48 bg-gray-200 relative">
+            <img 
+              src={quiz.coverImage || "https://placehold.co/800x400"} 
+              alt="Quiz cover"
+              className="w-full h-full object-cover"
+            />
+          </div>
+
+          {/* Content */}
+          <div className="p-8">
+            <div className="text-center mb-8">
+              <h1 className="text-2xl font-bold text-gray-900 mb-4">
+                Thank You for Completing {quiz.title}!
+              </h1>
+              
+              {quiz.status === 'completed' && userScore !== undefined && (
+                <div className="text-lg">
+                  <p className="font-semibold text-gray-900">
+                    Your Score: {userScore}/{totalPoints} correct
+                  </p>
+                  <p className="text-gray-600 mt-1">
+                    Ranked #{userRank} globally
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Results Section */}
+            {quiz.status === 'completed' && userSubmission && (
+              <div className="mb-8">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Your Results</h2>
+                <div className="space-y-4">
+                  {quiz.questions.map((question) => {
+                    const userAnswer = userSubmission.answers[question.id];
+                    const correctAnswer = quiz.correctAnswers?.[question.id];
+                    const isCorrect = userAnswer === correctAnswer;
+
+                    return (
+                      <div 
+                        key={question.id} 
+                        className={`p-4 rounded-lg border ${
+                          isCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="text-gray-900 font-medium">{question.text}</h3>
+                          <span className={`px-2 py-1 rounded text-sm font-medium ${
+                            isCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {isCorrect ? `+${question.points}` : '0'} points
+                          </span>
+                        </div>
+                        <div className="space-y-1 text-sm">
+                          <p className="text-gray-600">
+                            Your answer: <span className="font-medium">{userAnswer}</span>
+                          </p>
+                          <p className="text-gray-600">
+                            Correct answer: <span className="font-medium">{correctAnswer}</span>
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Leaderboard Section */}
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Leaderboard</h2>
+              <div className="bg-gray-50 rounded-lg overflow-hidden">
+                <div className="divide-y divide-gray-200">
+                  {submissions.map((submission, index) => {
+                    const isCurrentUser = submission.userName === userSubmission?.userName;
+                    const [firstName, ...lastNameParts] = submission.userName.split(' ');
+                    const displayName = `${firstName} ${lastNameParts.length > 0 ? lastNameParts[0][0] + '.' : ''}`;
+
+                    return (
+                      <div 
+                        key={submission.userId}
+                        className={`flex items-center p-4 ${
+                          isCurrentUser ? 'bg-blue-50' : ''
+                        }`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center">
+                            <span className="text-gray-500 w-8">{index + 1}</span>
+                            <div className="flex items-center">
+                              <span className={`font-medium ${
+                                isCurrentUser ? 'text-blue-600' : 'text-gray-900'
+                              }`}>
+                                {displayName}
+                              </span>
+                              {index === 0 && (
+                                <svg
+                                  className="w-6 h-6 ml-2"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                >
+                                  {/* Base */}
+                                  <path
+                                    d="M7 21H17"
+                                    stroke="#000000"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                  />
+                                  <path
+                                    d="M12 21V17"
+                                    stroke="#000000"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                  />
+                                  {/* Cup body */}
+                                  <path
+                                    d="M7 3h10v8a5 5 0 01-10 0V3z"
+                                    fill="#FFB800"
+                                  />
+                                  {/* Cup outline */}
+                                  <path
+                                    d="M7 3h10v8a5 5 0 01-10 0V3z"
+                                    stroke="#FF9500"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                  />
+                                  {/* Handles */}
+                                  <path
+                                    d="M17 7h2a2 2 0 002-2v0a2 2 0 00-2-2h-2"
+                                    stroke="#FF9500"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                  />
+                                  <path
+                                    d="M7 7H5a2 2 0 01-2-2v0a2 2 0 012-2h2"
+                                    stroke="#FF9500"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                  />
+                                  {/* Stars */}
+                                  <path
+                                    d="M12 6l.5-1 .5 1 1-.5-.5 1 1 .5-1 .5.5 1-.5-1-1 .5.5-1-1-.5z"
+                                    fill="white"
+                                  />
+                                  <path
+                                    d="M9.5 9l.3-.6.3.6.6-.3-.3.6.6.3-.6.3.3.6-.3-.6-.6.3.3-.6-.6-.3z"
+                                    fill="white"
+                                  />
+                                  <path
+                                    d="M14.5 9l.3-.6.3.6.6-.3-.3.6.6.3-.6.3.3.6-.3-.6-.6.3.3-.6-.6-.3z"
+                                    fill="white"
+                                  />
+                                </svg>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-4">
+                          <button
+                            onClick={() => setSelectedSubmission(submission)}
+                            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                          >
+                            View results
+                          </button>
+                          {submission.score !== undefined && (
+                            <div className="text-gray-900 font-medium">
+                              {submission.score}/{totalPoints}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8 text-center">
+              <Link
+                href="/"
+                className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200"
+              >
+                Return Home
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {selectedSubmission && quiz && (
+        <ResultsModal
+          isOpen={!!selectedSubmission}
+          onClose={() => setSelectedSubmission(null)}
+          submission={selectedSubmission}
+          quiz={quiz}
+        />
+      )}
+    </div>
+  );
+} 

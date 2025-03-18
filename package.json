@@ -1,0 +1,33 @@
+{
+  "name": "bracket-anything",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "predev": "node -e \"try { require('next') } catch(e) { console.error('Next.js is not installed. Please run npm install first.'); process.exit(1); }\"",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "create-test-quiz": "ts-node scripts/create-test-quiz.ts"
+  },
+  "dependencies": {
+    "crypto-browserify": "^3.12.1",
+    "firebase": "^10.8.0",
+    "framer-motion": "^12.5.0",
+    "next": "^15.2.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "autoprefixer": "^10.0.1",
+    "eslint": "^8",
+    "eslint-config-next": "14.1.0",
+    "postcss": "^8",
+    "tailwindcss": "^3.3.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5"
+  }
+}
