@@ -23,7 +23,7 @@ function CreateQuizContent() {
     id: '1',
     type: 'multiple',
     text: '',
-    points: 0,
+    points: 1,
     options: ['', '']
   }]);
   const [coverImage, setCoverImage] = useState<string>('');
@@ -33,7 +33,7 @@ function CreateQuizContent() {
       id: String(questions.length + 1),
       type: 'multiple',
       text: '',
-      points: 0,
+      points: 1,
       options: ['', '']
     }]);
   };
