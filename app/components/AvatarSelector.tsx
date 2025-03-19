@@ -82,6 +82,7 @@ export default function AvatarSelector({ onAvatarSelect, initialAvatar }: Avatar
                 className="object-contain p-2"
                 sizes="(max-width: 128px) 100vw, 128px"
                 priority
+                style={{ objectPosition: 'center' }}
               />
             </motion.div>
           )}

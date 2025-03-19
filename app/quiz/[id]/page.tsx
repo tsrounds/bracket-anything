@@ -48,7 +48,13 @@ export default function QuizLandingPage() {
           if (user) {
             const registrationRef = doc(db, 'quizRegistrations', `${quizId}_${user.uid}`);
             const registrationDoc = await getDoc(registrationRef);
-            setIsRegistered(registrationDoc.exists());
+            const isUserRegistered = registrationDoc.exists();
+            setIsRegistered(isUserRegistered);
+            
+            // If user is not registered, redirect directly to registration page
+            if (!isUserRegistered) {
+              router.push(`/quiz/${quizId}/register`);
+            }
           }
         } else {
           console.error('Quiz not found');
@@ -114,18 +120,6 @@ export default function QuizLandingPage() {
                   <span className="font-medium">Total Points:</span>{' '}
                   {quiz.questions.reduce((sum, q) => sum + q.points, 0)}
                 </p>
-              </div>
-            </div>
-
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Instructions</h2>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <ul className="list-disc list-inside space-y-2 text-gray-600">
-                  <li>Please ensure you have enough time to complete the quiz</li>
-                  <li>You cannot save your progress and return later</li>
-                  <li>Make sure to answer all questions before submitting</li>
-                  <li>Your responses will be recorded once you click submit</li>
-                </ul>
               </div>
             </div>
 
