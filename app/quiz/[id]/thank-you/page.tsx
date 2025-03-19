@@ -24,11 +24,15 @@ interface Quiz {
 }
 
 interface Submission {
+  id: string;
   userId: string;
   userName: string;
+  quizId: string;
   answers: Record<string, string>;
   submittedAt: string;
   score?: number;
+  totalQuestions?: number;
+  totalAnswered?: number;
 }
 
 function ResultsModal({ 
@@ -120,40 +124,35 @@ export default function ThankYouPage({ params }: { params: { id: string } }) {
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [userSubmission, setUserSubmission] = useState<Submission | null>(null);
-  const [loading, setLoading] = useState(true);
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchQuizAndSubmissions = async () => {
       try {
-        // Get quiz data
+        // Fetch quiz data
         const quizDoc = await getDoc(doc(db, 'quizzes', params.id));
         if (quizDoc.exists()) {
           const quizData = { id: quizDoc.id, ...quizDoc.data() } as Quiz;
           setQuiz(quizData);
 
-          // Get all submissions for this quiz
+          // If quiz is not completed, don't fetch submissions
+          if (quizData.status !== 'completed') {
+            setLoading(false);
+            return;
+          }
+
+          // Fetch all submissions for this quiz
           const submissionsQuery = query(
             collection(db, 'submissions'),
             where('quizId', '==', params.id)
           );
           const submissionsSnapshot = await getDocs(submissionsQuery);
-          
-          const allSubmissions = submissionsSnapshot.docs.map(doc => {
-            const data = doc.data() as Submission;
-            // Calculate score if quiz is completed and has correct answers
-            if (quizData.status === 'completed' && quizData.correctAnswers) {
-              let score = 0;
-              Object.entries(data.answers).forEach(([questionId, answer]) => {
-                const question = quizData.questions.find(q => q.id === questionId);
-                if (question && quizData.correctAnswers?.[questionId] === answer) {
-                  score += question.points;
-                }
-              });
-              data.score = score;
-            }
-            return data;
-          });
+          const allSubmissions = submissionsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as Submission[];
 
           // Sort submissions by score (if completed) or submission time
           const sortedSubmissions = allSubmissions.sort((a, b) => {
@@ -277,114 +276,56 @@ export default function ThankYouPage({ params }: { params: { id: string } }) {
               </div>
             )}
 
-            {/* Leaderboard Section */}
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Leaderboard</h2>
-              <div className="bg-gray-50 rounded-lg overflow-hidden">
-                <div className="divide-y divide-gray-200">
+            {/* Leaderboard Section - Only show if quiz is completed */}
+            {quiz.status === 'completed' && submissions.length > 0 && (
+              <div className="mt-8">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Leaderboard</h2>
+                <div className="space-y-4">
                   {submissions.map((submission, index) => {
                     const isCurrentUser = submission.userName === userSubmission?.userName;
-                    const [firstName, ...lastNameParts] = submission.userName.split(' ');
-                    const displayName = `${firstName} ${lastNameParts.length > 0 ? lastNameParts[0][0] + '.' : ''}`;
 
                     return (
-                      <div 
-                        key={submission.userId}
-                        className={`flex items-center p-4 ${
-                          isCurrentUser ? 'bg-blue-50' : ''
+                      <div
+                        key={submission.id}
+                        className={`p-4 rounded-lg border ${
+                          isCurrentUser ? 'border-blue-200 bg-blue-50' : 'border-gray-200'
                         }`}
                       >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center">
-                            <span className="text-gray-500 w-8">{index + 1}</span>
-                            <div className="flex items-center">
-                              <span className={`font-medium ${
-                                isCurrentUser ? 'text-blue-600' : 'text-gray-900'
-                              }`}>
-                                {displayName}
-                              </span>
-                              {index === 0 && (
-                                <svg
-                                  className="w-6 h-6 ml-2"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  xmlns="http://www.w3.org/2000/svg"
-                                >
-                                  {/* Base */}
-                                  <path
-                                    d="M7 21H17"
-                                    stroke="#000000"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                  />
-                                  <path
-                                    d="M12 21V17"
-                                    stroke="#000000"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                  />
-                                  {/* Cup body */}
-                                  <path
-                                    d="M7 3h10v8a5 5 0 01-10 0V3z"
-                                    fill="#FFB800"
-                                  />
-                                  {/* Cup outline */}
-                                  <path
-                                    d="M7 3h10v8a5 5 0 01-10 0V3z"
-                                    stroke="#FF9500"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                  />
-                                  {/* Handles */}
-                                  <path
-                                    d="M17 7h2a2 2 0 002-2v0a2 2 0 00-2-2h-2"
-                                    stroke="#FF9500"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                  />
-                                  <path
-                                    d="M7 7H5a2 2 0 01-2-2v0a2 2 0 012-2h2"
-                                    stroke="#FF9500"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                  />
-                                  {/* Stars */}
-                                  <path
-                                    d="M12 6l.5-1 .5 1 1-.5-.5 1 1 .5-1 .5.5 1-.5-1-1 .5.5-1-1-.5z"
-                                    fill="white"
-                                  />
-                                  <path
-                                    d="M9.5 9l.3-.6.3.6.6-.3-.3.6.6.3-.6.3.3.6-.3-.6-.6.3.3-.6-.6-.3z"
-                                    fill="white"
-                                  />
-                                  <path
-                                    d="M14.5 9l.3-.6.3.6.6-.3-.3.6.6.3-.6.3.3.6-.3-.6-.6.3.3-.6-.6-.3z"
-                                    fill="white"
-                                  />
-                                </svg>
-                              )}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-4">
+                            <div className="text-lg font-bold text-gray-900">
+                              #{index + 1}
+                            </div>
+                            <div>
+                              <div className="font-medium text-gray-900">
+                                {submission.userName}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                Submitted on {new Date(submission.submittedAt).toLocaleString()}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        <div className="flex items-center space-x-4">
-                          <button
-                            onClick={() => setSelectedSubmission(submission)}
-                            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                          >
-                            View results
-                          </button>
-                          {submission.score !== undefined && (
-                            <div className="text-gray-900 font-medium">
-                              {submission.score}/{totalPoints}
-                            </div>
-                          )}
+
+                          <div className="flex items-center space-x-4">
+                            <button
+                              onClick={() => setSelectedSubmission(submission)}
+                              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                            >
+                              View results
+                            </button>
+                            {submission.score !== undefined && (
+                              <div className="text-gray-900 font-medium">
+                                {submission.score}/{totalPoints}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
                   })}
                 </div>
               </div>
-            </div>
+            )}
 
             <div className="mt-8 text-center">
               <Link

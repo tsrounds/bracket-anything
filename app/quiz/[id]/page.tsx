@@ -5,6 +5,7 @@ import { db } from '../../lib/firebase/firebase-client';
 import { doc, getDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
+import { useAuth } from '../../components/UserAuth';
 
 interface Quiz {
   id: string;
@@ -23,12 +24,14 @@ interface Quiz {
 export default function QuizLandingPage() {
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isRegistered, setIsRegistered] = useState(false);
   const router = useRouter();
   const params = useParams();
   const quizId = params.id as string;
+  const { user } = useAuth();
 
   useEffect(() => {
-    const fetchQuiz = async () => {
+    const fetchQuizAndRegistration = async () => {
       try {
         const quizDoc = await getDoc(doc(db, 'quizzes', quizId));
         if (quizDoc.exists()) {
@@ -38,6 +41,14 @@ export default function QuizLandingPage() {
           // If quiz is completed, redirect to a message page
           if (quizData.status === 'completed') {
             router.push(`/quiz/${quizId}/completed`);
+            return;
+          }
+
+          // Check if user is already registered
+          if (user) {
+            const registrationRef = doc(db, 'quizRegistrations', `${quizId}_${user.uid}`);
+            const registrationDoc = await getDoc(registrationRef);
+            setIsRegistered(registrationDoc.exists());
           }
         } else {
           console.error('Quiz not found');
@@ -49,14 +60,18 @@ export default function QuizLandingPage() {
       }
     };
 
-    fetchQuiz();
-  }, [quizId, router]);
+    fetchQuizAndRegistration();
+  }, [quizId, router, user]);
 
   const handleStartQuiz = () => {
     if (quiz?.status === 'completed') {
       return;
     }
-    router.push(`/quiz/${quizId}/register`);
+    if (isRegistered) {
+      router.push(`/quiz/${quizId}/take`);
+    } else {
+      router.push(`/quiz/${quizId}/register`);
+    }
   };
 
   if (loading) {
@@ -119,7 +134,7 @@ export default function QuizLandingPage() {
                 onClick={handleStartQuiz}
                 className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200"
               >
-                Start Quiz
+                {isRegistered ? 'Continue Quiz' : 'Start Quiz'}
               </button>
             </div>
           </div>
