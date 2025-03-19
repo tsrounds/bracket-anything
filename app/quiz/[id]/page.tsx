@@ -48,14 +48,7 @@ export default function QuizLandingPage() {
           if (user) {
             const registrationRef = doc(db, 'quizRegistrations', `${quizId}_${user.uid}`);
             const registrationDoc = await getDoc(registrationRef);
-            const isUserRegistered = registrationDoc.exists();
-            setIsRegistered(isUserRegistered);
-            
-            // If user is not registered, redirect directly to registration page
-            if (!isUserRegistered) {
-              router.replace(`/quiz/${quizId}/register`);
-              return;
-            }
+            setIsRegistered(registrationDoc.exists());
           }
         } else {
           console.error('Quiz not found');
@@ -100,10 +93,6 @@ export default function QuizLandingPage() {
     );
   }
 
-  if (!isRegistered) {
-    return null;
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
@@ -133,7 +122,7 @@ export default function QuizLandingPage() {
                 onClick={handleStartQuiz}
                 className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200"
               >
-                Continue Quiz
+                {isRegistered ? 'Continue Quiz' : 'Start Quiz'}
               </button>
             </div>
           </div>
