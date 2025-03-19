@@ -56,8 +56,8 @@ export default function QuizLandingPage() {
             return;
           }
 
-          // Only check registration if we have a user and haven't already checked
-          if (user && !isRegistered) {
+          // Only check registration if we have a stable user state
+          if (user?.uid) {
             const registrationRef = doc(db, 'quizRegistrations', `${quizId}_${user.uid}`);
             console.log('🔍 [LANDING PAGE] Checking registration status:', {
               registrationRef: registrationRef.path,
@@ -85,12 +85,15 @@ export default function QuizLandingPage() {
       }
     };
 
-    fetchQuizAndRegistration();
+    // Only fetch if we have a stable user state or no user
+    if (!user || user.uid) {
+      fetchQuizAndRegistration();
+    }
 
     return () => {
       isMounted = false;
     };
-  }, [quizId, router, user]);
+  }, [quizId, router, user?.uid]); // Only depend on user.uid instead of entire user object
 
   const handleStartQuiz = () => {
     console.log('🔍 [LANDING PAGE] Start Quiz clicked', {
@@ -106,8 +109,7 @@ export default function QuizLandingPage() {
     if (isRegistered) {
       router.push(`/quiz/${quizId}/take`);
     } else {
-      // Use replace instead of push to prevent back navigation
-      router.replace(`/quiz/${quizId}/register`);
+      router.push(`/quiz/${quizId}/register`);
     }
   };
 

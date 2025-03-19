@@ -36,7 +36,7 @@ export default function QuizRegistration({ params }: { params: { id: string } })
     let isMounted = true;
 
     const fetchUserProfile = async () => {
-      if (user) {
+      if (user?.uid) {
         try {
           const userProfileDoc = await getDoc(doc(db, 'userProfiles', user.uid));
           console.log('🔍 [REGISTER PAGE] User profile check:', {
@@ -57,12 +57,14 @@ export default function QuizRegistration({ params }: { params: { id: string } })
       }
     };
 
-    fetchUserProfile();
+    if (user?.uid) {
+      fetchUserProfile();
+    }
 
     return () => {
       isMounted = false;
     };
-  }, [user]);
+  }, [user?.uid]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,7 +72,7 @@ export default function QuizRegistration({ params }: { params: { id: string } })
     setLoading(true);
 
     try {
-      if (!user) {
+      if (!user?.uid) {
         throw new Error('Please sign in to continue');
       }
 
@@ -119,7 +121,7 @@ export default function QuizRegistration({ params }: { params: { id: string } })
       sessionStorage.setItem('quizId', params.id);
 
       console.log('🔍 [REGISTER PAGE] Redirecting to take page');
-      // Use replace instead of push to prevent back navigation
+      
       router.replace(`/quiz/${params.id}/take`);
     } catch (error) {
       console.error('🔍 [REGISTER PAGE] Registration error:', error);
