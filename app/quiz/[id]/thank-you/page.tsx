@@ -126,7 +126,16 @@ export default function ThankYouPage({ params }: { params: { id: string } }) {
   const [userSubmission, setUserSubmission] = useState<Submission | null>(null);
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fadeOut, setFadeOut] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    // Start with fadeOut true and then set it to false after a short delay
+    setFadeOut(true);
+    setTimeout(() => {
+      setFadeOut(false);
+    }, 300);
+  }, []);
 
   useEffect(() => {
     const fetchQuizAndSubmissions = async () => {
@@ -205,136 +214,148 @@ export default function ThankYouPage({ params }: { params: { id: string } }) {
   const userRank = userSubmission ? submissions.findIndex(s => s.userName === userSubmission.userName) + 1 : null;
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          {/* Quiz Cover Image */}
-          <div className="w-full h-48 bg-gray-200 relative">
-            <img 
-              src={quiz.coverImage || "https://placehold.co/800x400"} 
-              alt="Quiz cover"
-              className="w-full h-full object-cover"
-            />
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
+      <div className={`w-[320px] h-[688px] bg-white rounded-xl shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border border-gray-200 transition-opacity duration-300 ${fadeOut ? 'opacity-0' : 'opacity-100'}`}>
+        {/* Quiz Cover Image */}
+        <div className="p-3 pb-[18px]">
+          <img 
+            src={quiz.coverImage || "https://placehold.co/294x208"} 
+            alt="Quiz cover"
+            className="w-[294px] h-[208px] rounded-lg shadow-[0px_4px_4px_0px_rgba(0,0,0,0.30)] object-cover"
+          />
+        </div>
+
+        {/* Content */}
+        <div className="px-3">
+          <div className="text-center mb-6">
+            <h1 className="text-xl font-normal font-['Inter'] text-black mb-4">
+              {quiz.status === 'in-progress' 
+                ? "Congrats! You're in."
+                : `Thank You for Completing ${quiz.title}!`
+              }
+            </h1>
+            
+            {quiz.status === 'completed' && userScore !== undefined && (
+              <div className="text-lg">
+                <p className="font-semibold text-gray-900">
+                  Your Score: {userScore}/{totalPoints} correct
+                </p>
+                <p className="text-gray-600 mt-1">
+                  Ranked #{userRank} globally
+                </p>
+              </div>
+            )}
           </div>
 
-          {/* Content */}
-          <div className="p-8">
-            <div className="text-center mb-8">
-              <h1 className="text-2xl font-bold text-gray-900 mb-4">
-                Thank You for Completing {quiz.title}!
-              </h1>
-              
-              {quiz.status === 'completed' && userScore !== undefined && (
-                <div className="text-lg">
-                  <p className="font-semibold text-gray-900">
-                    Your Score: {userScore}/{totalPoints} correct
-                  </p>
-                  <p className="text-gray-600 mt-1">
-                    Ranked #{userRank} globally
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Results Section */}
-            {quiz.status === 'completed' && userSubmission && (
-              <div className="mb-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Your Results</h2>
-                <div className="space-y-4">
-                  {quiz.questions.map((question) => {
-                    const userAnswer = userSubmission.answers[question.id];
-                    const correctAnswer = quiz.correctAnswers?.[question.id];
-                    const isCorrect = userAnswer === correctAnswer;
-
-                    return (
-                      <div 
-                        key={question.id} 
-                        className={`p-4 rounded-lg border ${
-                          isCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
-                        }`}
-                      >
-                        <div className="flex justify-between items-start mb-2">
-                          <h3 className="text-gray-900 font-medium">{question.text}</h3>
-                          <span className={`px-2 py-1 rounded text-sm font-medium ${
-                            isCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
-                            {isCorrect ? `+${question.points}` : '0'} points
-                          </span>
-                        </div>
-                        <div className="space-y-1 text-sm">
-                          <p className="text-gray-600">
-                            Your answer: <span className="font-medium">{userAnswer}</span>
-                          </p>
-                          <p className="text-gray-600">
-                            Correct answer: <span className="font-medium">{correctAnswer}</span>
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+          {/* Pulsing Banner for In-Progress Quizzes */}
+          {quiz.status === 'in-progress' && (
+            <div className="mb-6">
+              <div className="w-[18rem] mx-auto bg-blue-50 border border-blue-200 rounded-lg p-4 animate-pulse">
+                <p className="text-blue-700 text-center font-medium">
+                  Results are being tallied
+                </p>
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Leaderboard Section - Only show if quiz is completed */}
-            {quiz.status === 'completed' && submissions.length > 0 && (
-              <div className="mt-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Leaderboard</h2>
-                <div className="space-y-4">
-                  {submissions.map((submission, index) => {
-                    const isCurrentUser = submission.userName === userSubmission?.userName;
+          {/* Results Section */}
+          {quiz.status === 'completed' && userSubmission && (
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Your Results</h2>
+              <div className="space-y-4">
+                {quiz.questions.map((question) => {
+                  const userAnswer = userSubmission.answers[question.id];
+                  const correctAnswer = quiz.correctAnswers?.[question.id];
+                  const isCorrect = userAnswer === correctAnswer;
 
-                    return (
-                      <div
-                        key={submission.id}
-                        className={`p-4 rounded-lg border ${
-                          isCurrentUser ? 'border-blue-200 bg-blue-50' : 'border-gray-200'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4">
-                            <div className="text-lg font-bold text-gray-900">
-                              #{index + 1}
+                  return (
+                    <div 
+                      key={question.id} 
+                      className={`p-4 rounded-lg border ${
+                        isCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="text-gray-900 font-medium">{question.text}</h3>
+                        <span className={`px-2 py-1 rounded text-sm font-medium ${
+                          isCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {isCorrect ? `+${question.points}` : '0'} points
+                        </span>
+                      </div>
+                      <div className="space-y-1 text-sm">
+                        <p className="text-gray-600">
+                          Your answer: <span className="font-medium">{userAnswer}</span>
+                        </p>
+                        <p className="text-gray-600">
+                          Correct answer: <span className="font-medium">{correctAnswer}</span>
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Leaderboard Section */}
+          {quiz.status === 'completed' && submissions.length > 0 && (
+            <div className="mt-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Leaderboard</h2>
+              <div className="space-y-4">
+                {submissions.map((submission, index) => {
+                  const isCurrentUser = submission.userName === userSubmission?.userName;
+
+                  return (
+                    <div
+                      key={submission.id}
+                      className={`p-4 rounded-lg border ${
+                        isCurrentUser ? 'border-blue-200 bg-blue-50' : 'border-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div className="text-lg font-bold text-gray-900">
+                            #{index + 1}
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900">
+                              {submission.userName}
                             </div>
-                            <div>
-                              <div className="font-medium text-gray-900">
-                                {submission.userName}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                Submitted on {new Date(submission.submittedAt).toLocaleString()}
-                              </div>
+                            <div className="text-sm text-gray-500">
+                              Submitted on {new Date(submission.submittedAt).toLocaleString()}
                             </div>
                           </div>
+                        </div>
 
-                          <div className="flex items-center space-x-4">
-                            <button
-                              onClick={() => setSelectedSubmission(submission)}
-                              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                            >
-                              View results
-                            </button>
-                            {submission.score !== undefined && (
-                              <div className="text-gray-900 font-medium">
-                                {submission.score}/{totalPoints}
-                              </div>
-                            )}
-                          </div>
+                        <div className="flex items-center space-x-4">
+                          <button
+                            onClick={() => setSelectedSubmission(submission)}
+                            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                          >
+                            View results
+                          </button>
+                          {submission.score !== undefined && (
+                            <div className="text-gray-900 font-medium">
+                              {submission.score}/{totalPoints}
+                            </div>
+                          )}
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
+                    </div>
+                  );
+                })}
               </div>
-            )}
-
-            <div className="mt-8 text-center">
-              <Link
-                href="/"
-                className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200"
-              >
-                Return Home
-              </Link>
             </div>
+          )}
+
+          <div className="mt-8 mb-12 text-center">
+            <Link
+              href="/"
+              className="inline-block w-[18rem] bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200"
+            >
+              Return Home
+            </Link>
           </div>
         </div>
       </div>
