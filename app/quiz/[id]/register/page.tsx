@@ -27,11 +27,23 @@ export default function QuizRegistration({ params }: { params: { id: string } })
   const router = useRouter();
 
   useEffect(() => {
+    console.log('🔍 [REGISTER PAGE] Component mounted', {
+      quizId: params.id,
+      userId: user?.uid,
+      timestamp: new Date().toISOString()
+    });
+
+    let isMounted = true;
+
     const fetchUserProfile = async () => {
       if (user) {
         try {
           const userProfileDoc = await getDoc(doc(db, 'userProfiles', user.uid));
-          if (userProfileDoc.exists()) {
+          console.log('🔍 [REGISTER PAGE] User profile check:', {
+            exists: userProfileDoc.exists(),
+            userId: user.uid
+          });
+          if (userProfileDoc.exists() && isMounted) {
             const profileData = userProfileDoc.data();
             setFormData({
               name: profileData.name,
@@ -40,12 +52,16 @@ export default function QuizRegistration({ params }: { params: { id: string } })
             });
           }
         } catch (error) {
-          console.error('Error fetching user profile:', error);
+          console.error('🔍 [REGISTER PAGE] Error fetching user profile:', error);
         }
       }
     };
 
     fetchUserProfile();
+
+    return () => {
+      isMounted = false;
+    };
   }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -57,6 +73,12 @@ export default function QuizRegistration({ params }: { params: { id: string } })
       if (!user) {
         throw new Error('Please sign in to continue');
       }
+
+      console.log('🔍 [REGISTER PAGE] Starting registration process:', {
+        quizId: params.id,
+        userId: user.uid,
+        timestamp: new Date().toISOString()
+      });
 
       // Basic validation
       if (!formData.name.trim()) {
@@ -73,6 +95,8 @@ export default function QuizRegistration({ params }: { params: { id: string } })
         avatar: formData.avatar || null,
       }, { merge: true });
 
+      console.log('🔍 [REGISTER PAGE] User profile updated');
+
       // Create quiz registration document
       const registrationRef = doc(db, 'quizRegistrations', `${params.id}_${user.uid}`);
       await setDoc(registrationRef, {
@@ -84,15 +108,21 @@ export default function QuizRegistration({ params }: { params: { id: string } })
         createdAt: new Date().toISOString(),
       });
 
+      console.log('🔍 [REGISTER PAGE] Quiz registration created:', {
+        registrationRef: registrationRef.path,
+        userId: user.uid
+      });
+
       // Store user info in session storage for quiz completion
       sessionStorage.setItem('userId', user.uid);
       sessionStorage.setItem('userName', formData.name.trim());
       sessionStorage.setItem('quizId', params.id);
 
-      // Redirect to quiz
-      router.push(`/quiz/${params.id}/take`);
+      console.log('🔍 [REGISTER PAGE] Redirecting to take page');
+      // Use replace instead of push to prevent back navigation
+      router.replace(`/quiz/${params.id}/take`);
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error('🔍 [REGISTER PAGE] Registration error:', error);
       setError(error instanceof Error ? error.message : 'Failed to register');
     } finally {
       setLoading(false);
