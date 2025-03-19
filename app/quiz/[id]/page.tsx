@@ -53,7 +53,8 @@ export default function QuizLandingPage() {
             
             // If user is not registered, redirect directly to registration page
             if (!isUserRegistered) {
-              router.push(`/quiz/${quizId}/register`);
+              router.replace(`/quiz/${quizId}/register`);
+              return;
             }
           }
         } else {
@@ -99,6 +100,10 @@ export default function QuizLandingPage() {
     );
   }
 
+  if (!isRegistered) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
@@ -128,7 +133,7 @@ export default function QuizLandingPage() {
                 onClick={handleStartQuiz}
                 className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200"
               >
-                {isRegistered ? 'Continue Quiz' : 'Start Quiz'}
+                Continue Quiz
               </button>
             </div>
           </div>
