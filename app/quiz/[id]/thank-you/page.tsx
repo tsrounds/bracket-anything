@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { db } from '../../../lib/firebase/firebase-client';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import styles from './thank-you.module.css';
 
 interface Question {
   id: string;
@@ -21,6 +22,7 @@ interface Quiz {
   questions: Question[];
   correctAnswers?: Record<string, string>;
   status: 'in-progress' | 'completed';
+  deadline: string;
 }
 
 interface Submission {
@@ -120,6 +122,104 @@ function ResultsModal({
   );
 }
 
+function CountdownTimer({ deadline }: { deadline: string }) {
+  const [timeLeft, setTimeLeft] = useState({
+    days: 0,
+    hours: 0,
+    minutes: 0,
+    seconds: 0
+  });
+  const [isDeadlinePassed, setIsDeadlinePassed] = useState(false);
+
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      const difference = new Date(deadline).getTime() - new Date().getTime();
+      
+      if (difference <= 0) {
+        setIsDeadlinePassed(true);
+        return;
+      }
+
+      setTimeLeft({
+        days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+        hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+        minutes: Math.floor((difference / 1000 / 60) % 60),
+        seconds: Math.floor((difference / 1000) % 60)
+      });
+    };
+
+    calculateTimeLeft();
+    const timer = setInterval(calculateTimeLeft, 1000);
+
+    return () => clearInterval(timer);
+  }, [deadline]);
+
+  if (isDeadlinePassed) {
+    return (
+      <div className={styles.pulseNotification}>
+        Results will be tallied soon
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.countdownContainer}>
+      <div className={styles.countdownItem}>
+        <span className={styles.countdownValue}>{timeLeft.days}</span>
+        <span className={styles.countdownLabel}>Days</span>
+      </div>
+      <div className={styles.countdownItem}>
+        <span className={styles.countdownValue}>{timeLeft.hours}</span>
+        <span className={styles.countdownLabel}>Hours</span>
+      </div>
+      <div className={styles.countdownItem}>
+        <span className={styles.countdownValue}>{timeLeft.minutes}</span>
+        <span className={styles.countdownLabel}>Minutes</span>
+      </div>
+      <div className={styles.countdownItem}>
+        <span className={styles.countdownValue}>{timeLeft.seconds}</span>
+        <span className={styles.countdownLabel}>Seconds</span>
+      </div>
+    </div>
+  );
+}
+
+function Confetti() {
+  const confettiRef = useRef<HTMLDivElement>(null);
+  const pieces = Array.from({ length: 50 });
+  const [isVisible, setIsVisible] = useState(true);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setIsVisible(false);
+    }, 4000); // Match the animation duration
+
+    return () => {
+      clearTimeout(timeout);
+      if (confettiRef.current) {
+        confettiRef.current.innerHTML = '';
+      }
+    };
+  }, []);
+
+  if (!isVisible) return null;
+
+  return (
+    <div ref={confettiRef} className={styles.confetti}>
+      {pieces.map((_, index) => (
+        <div
+          key={index}
+          className={styles.confettiPiece}
+          style={{
+            left: `${Math.random() * 100}%`,
+            animationDelay: `${Math.random() * 2}s`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function ThankYouPage({ params }: { params: { id: string } }) {
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -206,23 +306,28 @@ export default function ThankYouPage({ params }: { params: { id: string } }) {
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <Confetti />
       <div className="max-w-3xl mx-auto">
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           {/* Quiz Cover Image */}
-          <div className="w-full h-48 bg-gray-200 relative">
+          <div className="relative">
             <img 
               src={quiz.coverImage || "https://placehold.co/800x400"} 
               alt="Quiz cover"
-              className="w-full h-full object-cover"
+              className={styles.coverImage}
             />
           </div>
 
           {/* Content */}
           <div className="p-8">
             <div className="text-center mb-8">
-              <h1 className="text-2xl font-bold text-gray-900 mb-4">
-                Thank You for Completing {quiz.title}!
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                Congrats! You're in.
               </h1>
+              
+              {quiz.status === 'in-progress' && (
+                <CountdownTimer deadline={quiz.deadline} />
+              )}
               
               {quiz.status === 'completed' && userScore !== undefined && (
                 <div className="text-lg">

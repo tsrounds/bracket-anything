@@ -31,78 +31,45 @@ export default function QuizLandingPage() {
   const { user } = useAuth();
 
   useEffect(() => {
-    console.log('🔍 [LANDING PAGE] Component mounted', {
-      quizId,
-      userId: user?.uid,
-      isRegistered,
-      timestamp: new Date().toISOString()
-    });
-
-    let isMounted = true;
-
     const fetchQuizAndRegistration = async () => {
       try {
         const quizDoc = await getDoc(doc(db, 'quizzes', quizId));
         if (quizDoc.exists()) {
           const quizData = { id: quizDoc.id, ...quizDoc.data() } as Quiz;
-          if (isMounted) {
-            setQuiz(quizData);
-          }
+          setQuiz(quizData);
           
           // If quiz is completed, redirect to a message page
           if (quizData.status === 'completed') {
-            console.log('🔍 [LANDING PAGE] Quiz completed, redirecting to completed page');
             router.push(`/quiz/${quizId}/completed`);
             return;
           }
 
-          // Only check registration if we have a stable user state
-          if (user?.uid) {
+          // Check if user is already registered
+          if (user) {
             const registrationRef = doc(db, 'quizRegistrations', `${quizId}_${user.uid}`);
-            console.log('🔍 [LANDING PAGE] Checking registration status:', {
-              registrationRef: registrationRef.path,
-              userId: user.uid
-            });
             const registrationDoc = await getDoc(registrationRef);
-            const registrationExists = registrationDoc.exists();
-            console.log('🔍 [LANDING PAGE] Registration check result:', {
-              exists: registrationExists,
-              registrationData: registrationDoc.data()
-            });
-            if (isMounted) {
-              setIsRegistered(registrationExists);
+            const isUserRegistered = registrationDoc.exists();
+            setIsRegistered(isUserRegistered);
+            
+            // If user is not registered, redirect directly to registration page
+            if (!isUserRegistered) {
+              router.push(`/quiz/${quizId}/register`);
             }
           }
         } else {
-          console.error('🔍 [LANDING PAGE] Quiz not found');
+          console.error('Quiz not found');
         }
       } catch (error) {
-        console.error('🔍 [LANDING PAGE] Error fetching quiz:', error);
+        console.error('Error fetching quiz:', error);
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     };
 
-    // Only fetch if we have a stable user state or no user
-    if (!user || user.uid) {
-      fetchQuizAndRegistration();
-    }
-
-    return () => {
-      isMounted = false;
-    };
-  }, [quizId, router, user?.uid]); // Only depend on user.uid instead of entire user object
+    fetchQuizAndRegistration();
+  }, [quizId, router, user]);
 
   const handleStartQuiz = () => {
-    console.log('🔍 [LANDING PAGE] Start Quiz clicked', {
-      isRegistered,
-      quizId,
-      userId: user?.uid,
-      timestamp: new Date().toISOString()
-    });
-    
     if (quiz?.status === 'completed') {
       return;
     }
