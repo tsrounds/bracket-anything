@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { onAuthStateChanged, getAuth, Auth } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../lib/firebase/firebase-client';
 
 export default function AuthCheck({ children }: { children: React.ReactNode }) {
@@ -26,7 +26,7 @@ export default function AuthCheck({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const unsubscribe = onAuthStateChanged(auth as Auth, 
+      const unsubscribe = onAuthStateChanged(auth, 
         (user) => {
           console.log('Auth state changed:', { 
             hasUser: !!user,

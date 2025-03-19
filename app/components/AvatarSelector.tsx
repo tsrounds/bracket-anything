@@ -22,7 +22,7 @@ export default function AvatarSelector({ onAvatarSelect, initialAvatar }: Avatar
     const preloadImages = async () => {
       const loadedImages = await Promise.all(
         avatarPaths.map(async (path) => {
-          const img = new Image();
+          const img = new window.Image();
           img.src = path;
           return new Promise<string>((resolve) => {
             img.onload = () => resolve(path);

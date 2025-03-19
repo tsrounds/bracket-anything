@@ -1,6 +1,6 @@
-import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { getAuth, browserLocalPersistence, setPersistence, Auth } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/auth';
+import 'firebase/compat/firestore';
 
 // Log all environment variables for debugging
 console.log('Environment Variables Check:', {
@@ -21,9 +21,9 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-let app: FirebaseApp;
-let auth: Auth;
-let db: Firestore;
+let app: firebase.app.App;
+let auth: firebase.auth.Auth;
+let db: firebase.firestore.Firestore;
 
 if (typeof window !== 'undefined') {
   try {
@@ -32,17 +32,22 @@ if (typeof window !== 'undefined') {
     }
 
     // Initialize Firebase
-    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+    if (!firebase.apps.length) {
+      app = firebase.initializeApp(firebaseConfig);
+    } else {
+      app = firebase.app();
+    }
+
     console.log('Firebase app initialized:', { 
-      projectId: app?.options?.projectId,
-      existingApps: getApps().length 
+      projectId: firebaseConfig.projectId,
+      existingApps: firebase.apps.length 
     });
 
-    auth = getAuth(app);
-    db = getFirestore(app);
+    auth = app.auth();
+    db = app.firestore();
 
     // Set persistence to local
-    setPersistence(auth, browserLocalPersistence).catch((error) => {
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch((error: Error) => {
       console.error('Error setting auth persistence:', error);
     });
 
@@ -57,9 +62,9 @@ if (typeof window !== 'undefined') {
 } else {
   console.log('Firebase initialization skipped - running on server');
   // Initialize with empty instances for server-side rendering
-  app = {} as FirebaseApp;
-  auth = {} as Auth;
-  db = {} as Firestore;
+  app = {} as firebase.app.App;
+  auth = {} as firebase.auth.Auth;
+  db = {} as firebase.firestore.Firestore;
 }
 
 export { app, auth, db }; 

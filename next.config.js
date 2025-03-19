@@ -16,27 +16,44 @@ const nextConfig = {
       },
     ],
   },
-  webpack: (config) => {
-    config.resolve.fallback = {
-      ...config.resolve.fallback,
-      fs: false,
-      net: false,
-      tls: false,
-      crypto: require.resolve('crypto-browserify'),
-    };
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        crypto: require.resolve('crypto-browserify'),
+        stream: require.resolve('stream-browserify'),
+      };
+    }
 
-    // Add rule for handling private class fields
+    // Add rule for handling private class fields and undici
     config.module.rules.push({
       test: /\.m?js$/,
-      type: 'javascript/auto',
-      resolve: {
-        fullySpecified: false,
-      },
+      include: [
+        /node_modules\/undici/,
+        /node_modules\/@firebase/,
+        /node_modules\/firebase/
+      ],
+      use: {
+        loader: 'babel-loader',
+        options: {
+          presets: ['@babel/preset-env'],
+          plugins: [
+            '@babel/plugin-transform-private-methods',
+            '@babel/plugin-transform-class-properties'
+          ]
+        }
+      }
     });
 
     return config;
   },
-  transpilePackages: ['undici', 'firebase', '@firebase/auth'],
+  transpilePackages: ['firebase', '@firebase/auth'],
+  experimental: {
+    serverComponentsExternalPackages: ['undici']
+  },
   env: {
     NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
     NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -50,7 +67,7 @@ const nextConfig = {
   poweredByHeader: false,
   compress: true,
   reactStrictMode: true,
-  swcMinify: true,
+  swcMinify: false, // Temporarily disable SWC minification
   // Domain configuration
   async headers() {
     return [
