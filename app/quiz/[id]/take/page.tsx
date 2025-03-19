@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { db } from '../../../lib/firebase/firebase-client';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -24,8 +24,13 @@ interface Quiz {
   status: 'active' | 'completed';
 }
 
-export default function TakeQuiz({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(params);
+type Props = {
+  params: {
+    id: string;
+  };
+}
+
+export default function TakeQuiz({ params }: Props) {
   const { user, loading: authLoading } = useAuth();
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,7 +44,7 @@ export default function TakeQuiz({ params }: { params: Promise<{ id: string }> }
   useEffect(() => {
     const fetchQuiz = async () => {
       try {
-        const quizDoc = await getDoc(doc(db, 'quizzes', resolvedParams.id));
+        const quizDoc = await getDoc(doc(db, 'quizzes', params.id));
         if (quizDoc.exists()) {
           setQuiz({ id: quizDoc.id, ...quizDoc.data() } as Quiz);
         }
@@ -51,7 +56,7 @@ export default function TakeQuiz({ params }: { params: Promise<{ id: string }> }
     };
 
     fetchQuiz();
-  }, [resolvedParams.id]);
+  }, [params.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,11 +75,11 @@ export default function TakeQuiz({ params }: { params: Promise<{ id: string }> }
       const userProfile = userProfileDoc.data();
 
       // Create submission document
-      const submissionRef = doc(db, 'submissions', `${resolvedParams.id}_${user.uid}`);
+      const submissionRef = doc(db, 'submissions', `${params.id}_${user.uid}`);
       const submissionData = {
         userId: user.uid,
         userName: userProfile.name,
-        quizId: resolvedParams.id,
+        quizId: params.id,
         answers,
         submittedAt: new Date().toISOString(),
         totalQuestions: quiz?.questions.length || 0,
@@ -84,7 +89,7 @@ export default function TakeQuiz({ params }: { params: Promise<{ id: string }> }
       await setDoc(submissionRef, submissionData);
 
       // Redirect to thank you page
-      router.push(`/quiz/${resolvedParams.id}/thank-you`);
+      router.push(`/quiz/${params.id}/thank-you`);
     } catch (error) {
       console.error('Submission error:', error);
       alert('Failed to submit quiz. Please try again.');
