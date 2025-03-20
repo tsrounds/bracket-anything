@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { db } from '../../../lib/firebase/firebase-client';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection } from 'firebase/firestore';
 import { useAuth } from '../../../components/UserAuth';
 import UserAuth from '../../../components/UserAuth';
 import styles from './quiz.module.css';
@@ -42,21 +42,33 @@ export default function TakeQuiz({ params }: Props) {
   const [fadeOut, setFadeOut] = useState(false);
 
   useEffect(() => {
-    const fetchQuiz = async () => {
+    const fetchQuizAndCheckSubmission = async () => {
       try {
+        // Fetch quiz data
         const quizDoc = await getDoc(doc(db, 'quizzes', params.id));
         if (quizDoc.exists()) {
           setQuiz({ id: quizDoc.id, ...quizDoc.data() } as Quiz);
         }
+
+        // Check for existing submission if user is logged in
+        if (user) {
+          const submissionRef = doc(db, 'submissions', `${params.id}_${user.uid}`);
+          const submissionDoc = await getDoc(submissionRef);
+          
+          if (submissionDoc.exists()) {
+            // User has already submitted, redirect to thank you page
+            router.push(`/quiz/${params.id}/thank-you?resubmit=true`);
+          }
+        }
       } catch (error) {
-        console.error('Error fetching quiz:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchQuiz();
-  }, [params.id]);
+    fetchQuizAndCheckSubmission();
+  }, [params.id, user, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,7 +86,7 @@ export default function TakeQuiz({ params }: Props) {
       }
       const userProfile = userProfileDoc.data();
 
-      // Create submission document
+      // Create submission document with unique ID
       const submissionRef = doc(db, 'submissions', `${params.id}_${user.uid}`);
       const submissionData = {
         userId: user.uid,

@@ -121,7 +121,7 @@ function ResultsModal({
   );
 }
 
-export default function ThankYouPage({ params }: { params: { id: string } }) {
+export default function ThankYouPage({ params, searchParams }: { params: { id: string }, searchParams: { resubmit?: string } }) {
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [userSubmission, setUserSubmission] = useState<Submission | null>(null);
@@ -129,8 +129,8 @@ export default function ThankYouPage({ params }: { params: { id: string } }) {
   const [loading, setLoading] = useState(true);
   const [fadeOut, setFadeOut] = useState(false);
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
-  const [uniqueAnswer, setUniqueAnswer] = useState<{questionId: string, answer: string} | null>(null);
-  const [universalAnswer, setUniversalAnswer] = useState<{questionId: string, answer: string} | null>(null);
+  const [uniqueAnswer, setUniqueAnswer] = useState<{questionId: string, answer: string, isMinority?: boolean} | null>(null);
+  const [universalAnswer, setUniversalAnswer] = useState<{questionId: string, answer: string, isMajority?: boolean} | null>(null);
   const router = useRouter();
   const { user } = useAuth();
 
@@ -184,21 +184,73 @@ export default function ThankYouPage({ params }: { params: { id: string } }) {
                 const userAnswers = userSub.answers;
                 const otherSubmissions = sortedSubmissions.filter(sub => sub.id !== userSub.id);
                 
+                console.log('Analyzing answers:', {
+                  userAnswers,
+                  otherSubmissionsCount: otherSubmissions.length,
+                  otherSubmissions: otherSubmissions.map(sub => ({
+                    id: sub.id,
+                    answers: sub.answers
+                  }))
+                });
+                
                 // Check for unique answers
+                let foundUnique = false;
                 for (const [questionId, answer] of Object.entries(userAnswers)) {
                   const isUnique = !otherSubmissions.some(sub => sub.answers[questionId] === answer);
+                  console.log('Checking unique answer:', {
+                    questionId,
+                    answer,
+                    isUnique,
+                    otherAnswers: otherSubmissions.map(sub => sub.answers[questionId])
+                  });
+                  
                   if (isUnique) {
                     setUniqueAnswer({ questionId, answer });
+                    foundUnique = true;
                     break;
                   }
                 }
                 
-                // Check for universal answers
-                for (const [questionId, answer] of Object.entries(userAnswers)) {
-                  const isUniversal = otherSubmissions.every(sub => sub.answers[questionId] === answer);
-                  if (isUniversal) {
-                    setUniversalAnswer({ questionId, answer });
-                    break;
+                // If no unique answer found, check for universal answers
+                if (!foundUnique) {
+                  for (const [questionId, answer] of Object.entries(userAnswers)) {
+                    const isUniversal = otherSubmissions.every(sub => sub.answers[questionId] === answer);
+                    console.log('Checking universal answer:', {
+                      questionId,
+                      answer,
+                      isUniversal,
+                      otherAnswers: otherSubmissions.map(sub => sub.answers[questionId])
+                    });
+                    
+                    if (isUniversal) {
+                      setUniversalAnswer({ questionId, answer });
+                      break;
+                    }
+                  }
+                }
+
+                // If still no message found, check for majority/minority
+                if (!foundUnique && !universalAnswer) {
+                  for (const [questionId, answer] of Object.entries(userAnswers)) {
+                    const otherAnswers = otherSubmissions.map(sub => sub.answers[questionId]);
+                    const answerCount = otherAnswers.filter(a => a === answer).length;
+                    const isMajority = answerCount > otherAnswers.length / 2;
+                    
+                    if (isMajority) {
+                      setUniversalAnswer({ 
+                        questionId, 
+                        answer,
+                        isMajority: true 
+                      });
+                      break;
+                    } else {
+                      setUniqueAnswer({ 
+                        questionId, 
+                        answer,
+                        isMinority: true 
+                      });
+                      break;
+                    }
                   }
                 }
               }
@@ -254,9 +306,11 @@ export default function ThankYouPage({ params }: { params: { id: string } }) {
         <div className="px-3">
           <div className="text-center mb-6">
             <h1 className="text-xl font-normal font-['Inter'] text-black mb-4">
-              {quiz.status === 'in-progress' 
-                ? "Congrats! You're in."
-                : "The results are in!"
+              {searchParams.resubmit === 'true'
+                ? "You've already entered!"
+                : quiz.status === 'in-progress' 
+                  ? "Congrats! You're in."
+                  : "The results are in!"
               }
             </h1>
             
@@ -279,26 +333,40 @@ export default function ThankYouPage({ params }: { params: { id: string } }) {
                 <p className="text-blue-700 text-center font-medium">
                   Results are being tallied
                 </p>
-                {uniqueAnswer && (
-                  <p className="text-blue-600 text-sm mt-2">
-                    You are the only person who selected "{uniqueAnswer.answer}" for question #{quiz.questions.findIndex(q => q.id === uniqueAnswer.questionId) + 1}... are you a genius?
-                  </p>
-                )}
-                {!uniqueAnswer && universalAnswer && (
-                  <p className="text-blue-600 text-sm mt-2">
-                    You and everyone else believe that "{universalAnswer.answer}" is the right answer to question #{quiz.questions.findIndex(q => q.id === universalAnswer.questionId) + 1}. Are you all correct??
-                  </p>
-                )}
               </div>
+              {(uniqueAnswer || universalAnswer) && (
+                <div className="mt-6 text-center">
+                  {uniqueAnswer && !uniqueAnswer.isMinority && (
+                    <p className="text-gray-700">
+                      You are the <span className="font-bold">only person</span> who selected "{uniqueAnswer.answer}" for Question #{quiz.questions.findIndex(q => q.id === uniqueAnswer.questionId) + 1}... <span className="italic">are you a genius?</span>
+                    </p>
+                  )}
+                  {uniqueAnswer && uniqueAnswer.isMinority && (
+                    <p className="text-gray-700">
+                      You're in the <span className="font-bold">minority</span> who selected "{uniqueAnswer.answer}" for Question #{quiz.questions.findIndex(q => q.id === uniqueAnswer.questionId) + 1}. Will you be proven right?
+                    </p>
+                  )}
+                  {!uniqueAnswer && universalAnswer && !universalAnswer.isMajority && (
+                    <p className="text-gray-700">
+                      You and <span className="font-bold">everyone</span> believe that "{universalAnswer.answer}" is the right answer to Question #{quiz.questions.findIndex(q => q.id === universalAnswer.questionId) + 1}. Are you all correct??
+                    </p>
+                  )}
+                  {!uniqueAnswer && universalAnswer && universalAnswer.isMajority && (
+                    <p className="text-gray-700">
+                      You're in the <span className="font-bold">majority</span> who selected "{universalAnswer.answer}" for Question #{quiz.questions.findIndex(q => q.id === universalAnswer.questionId) + 1}. Will the majority be right?
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
           {/* View Submission Button */}
           {quiz.status === 'in-progress' && userSubmission && (
-            <div className="mt-6">
+            <div className="mt-6 flex justify-center">
               <button
                 onClick={() => setShowSubmissionModal(true)}
-                className="w-full py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors duration-200"
+                className="w-48 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors duration-200"
               >
                 View Your Submission
               </button>
