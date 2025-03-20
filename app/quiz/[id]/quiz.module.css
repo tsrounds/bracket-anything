@@ -1,0 +1,49 @@
+.quiz-container {
+  /* Prevent any external styles from affecting the container */
+  isolation: isolate;
+  contain: layout size;
+  background-blend-mode: overlay;
+  font-family: 'PP Object Sans', system-ui, -apple-system, sans-serif;
+}
+
+.quiz-cover {
+  /* Ensure cover image maintains aspect ratio */
+  aspect-ratio: 316/202;
+  position: relative;
+  z-index: 1;
+}
+
+.quiz-title {
+  /* Prevent text wrapping and maintain consistent height */
+  min-height: 3rem;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  position: relative;
+  z-index: 1;
+  font-family: 'PP Object Sans Bold', 'PP Object Sans', system-ui, -apple-system, sans-serif;
+  font-size: 1.5rem; /* 24px */
+  font-weight: 700;
+}
+
+.quiz-deadline {
+  /* Ensure consistent deadline display */
+  font-variant-numeric: tabular-nums;
+  position: relative;
+  z-index: 1;
+  font-family: 'PP Object Sans Bold', 'PP Object Sans', system-ui, -apple-system, sans-serif;
+}
+
+/* Prevent any external styles from affecting quiz elements */
+.quiz-container * {
+  box-sizing: border-box;
+}
+
+/* Ensure consistent font rendering */
+.quiz-container {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+} 

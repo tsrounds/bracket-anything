@@ -23,30 +23,59 @@ export default function QuizRegistration({ params }: { params: { id: string } })
     avatar: '',
   });
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [formPrefilled, setFormPrefilled] = useState(false);
+  const [hasCheckedRegistration, setHasCheckedRegistration] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
+    console.log('🔍 [REGISTER PAGE] Component mounted', {
+      quizId: params.id,
+      userId: user?.uid,
+      hasCheckedRegistration,
+      timestamp: new Date().toISOString()
+    });
+
+    let isMounted = true;
+
     const fetchUserProfile = async () => {
-      if (user) {
+      // Only fetch if we have a stable user state and haven't checked registration yet
+      if (user?.uid && !hasCheckedRegistration) {
         try {
           const userProfileDoc = await getDoc(doc(db, 'userProfiles', user.uid));
-          if (userProfileDoc.exists()) {
+          console.log('🔍 [REGISTER PAGE] User profile check:', {
+            exists: userProfileDoc.exists(),
+            userId: user.uid
+          });
+          if (userProfileDoc.exists() && isMounted) {
             const profileData = userProfileDoc.data();
             setFormData({
-              name: profileData.name,
-              phoneNumber: profileData.phoneNumber,
+              name: profileData.name || '',
+              phoneNumber: profileData.phoneNumber || '',
               avatar: profileData.avatar || '',
             });
           }
         } catch (error) {
-          console.error('Error fetching user profile:', error);
+          console.error('🔍 [REGISTER PAGE] Error fetching user profile:', error);
+        } finally {
+          if (isMounted) {
+            setFormPrefilled(true);
+            setLoading(false);
+            setHasCheckedRegistration(true);
+          }
         }
+      } else if (isMounted) {
+        setFormPrefilled(true);
+        setLoading(false);
       }
     };
 
     fetchUserProfile();
-  }, [user]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.uid, hasCheckedRegistration]); // Add hasCheckedRegistration to dependencies
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,9 +83,16 @@ export default function QuizRegistration({ params }: { params: { id: string } })
     setLoading(true);
 
     try {
-      if (!user) {
+      if (!user?.uid) {
         throw new Error('Please sign in to continue');
       }
+
+      console.log('🔍 [REGISTER PAGE] Starting registration process:', {
+        quizId: params.id,
+        userId: user.uid,
+        formData,
+        timestamp: new Date().toISOString()
+      });
 
       // Basic validation
       if (!formData.name.trim()) {
@@ -73,6 +109,8 @@ export default function QuizRegistration({ params }: { params: { id: string } })
         avatar: formData.avatar || null,
       }, { merge: true });
 
+      console.log('🔍 [REGISTER PAGE] User profile updated');
+
       // Create quiz registration document
       const registrationRef = doc(db, 'quizRegistrations', `${params.id}_${user.uid}`);
       await setDoc(registrationRef, {
@@ -84,17 +122,23 @@ export default function QuizRegistration({ params }: { params: { id: string } })
         createdAt: new Date().toISOString(),
       });
 
+      console.log('🔍 [REGISTER PAGE] Quiz registration created:', {
+        registrationRef: registrationRef.path,
+        userId: user.uid
+      });
+
       // Store user info in session storage for quiz completion
       sessionStorage.setItem('userId', user.uid);
       sessionStorage.setItem('userName', formData.name.trim());
       sessionStorage.setItem('quizId', params.id);
 
-      // Redirect to quiz
-      router.push(`/quiz/${params.id}/take`);
+      console.log('🔍 [REGISTER PAGE] Redirecting to take page');
+      
+      // Use replace to prevent back navigation
+      router.replace(`/quiz/${params.id}/take`);
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error('🔍 [REGISTER PAGE] Registration error:', error);
       setError(error instanceof Error ? error.message : 'Failed to register');
-    } finally {
       setLoading(false);
     }
   };
@@ -109,6 +153,15 @@ export default function QuizRegistration({ params }: { params: { id: string } })
 
   if (!user) {
     return <UserAuth />;
+  }
+
+  // Show loading spinner if form data is not ready
+  if (!formPrefilled || (!formData.name && !formData.phoneNumber)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
   }
 
   return (

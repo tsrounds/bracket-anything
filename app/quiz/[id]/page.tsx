@@ -6,12 +6,15 @@ import { doc, getDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
 import { useAuth } from '../../components/UserAuth';
+import styles from './quiz.module.css';
+import buttonStyles from './button.module.css';
 
 interface Quiz {
   id: string;
   title: string;
   deadline: string;
   status: 'in-progress' | 'completed';
+  coverImage?: string;
   questions: {
     id: string;
     text: string;
@@ -25,6 +28,7 @@ export default function QuizLandingPage() {
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRegistered, setIsRegistered] = useState(false);
+  const [timeLeft, setTimeLeft] = useState<string>('');
   const router = useRouter();
   const params = useParams();
   const quizId = params.id as string;
@@ -69,6 +73,33 @@ export default function QuizLandingPage() {
     fetchQuizAndRegistration();
   }, [quizId, router, user]);
 
+  useEffect(() => {
+    if (!quiz?.deadline) return;
+
+    const updateCountdown = () => {
+      const now = new Date().getTime();
+      const deadlineTime = new Date(quiz.deadline).getTime();
+      const distance = deadlineTime - now;
+
+      if (distance < 0) {
+        setTimeLeft('EXPIRED');
+        return;
+      }
+
+      const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+      setTimeLeft(`${days}d ${hours}h ${minutes}m ${seconds}s`);
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(interval);
+  }, [quiz?.deadline]);
+
   const handleStartQuiz = () => {
     if (quiz?.status === 'completed') {
       return;
@@ -100,37 +131,51 @@ export default function QuizLandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">{quiz.title}</h1>
-          
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Quiz Details</h2>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-gray-600">
-                  <span className="font-medium">Questions:</span> {quiz.questions.length}
-                </p>
-                <p className="text-gray-600">
-                  <span className="font-medium">Deadline:</span>{' '}
-                  {new Date(quiz.deadline).toLocaleString()}
-                </p>
-                <p className="text-gray-600">
-                  <span className="font-medium">Total Points:</span>{' '}
-                  {quiz.questions.reduce((sum, q) => sum + q.points, 0)}
-                </p>
-              </div>
-            </div>
+    <div className="min-h-screen flex items-center justify-center">
+      <div className={`${styles['quiz-container']} w-96 h-[821px] relative overflow-hidden rounded-xl shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border border-gray-200`}>
+        {/* Background Image */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#E6D5C9] to-[#A1C4DD]" />
 
-            <div className="pt-6">
-              <button
-                onClick={handleStartQuiz}
-                className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200"
-              >
-                {isRegistered ? 'Continue Quiz' : 'Start Quiz'}
-              </button>
+        {/* Content Container */}
+        <div className="relative z-10">
+          {/* Cover Image */}
+          <div className={`${styles['quiz-cover']} p-3 pb-[18px]`}>
+            <img
+              src={quiz.coverImage || "https://placehold.co/316x202"}
+              alt={quiz.title}
+              className="w-full h-52 rounded-lg shadow-[0px_4px_4px_0px_rgba(0,0,0,0.30)] object-cover"
+            />
+          </div>
+
+          {/* Quiz Title */}
+          <div className="w-64 mx-auto text-center mt-6">
+            <h1 className={`${styles['quiz-title']} font-['PP Object Sans Bold'] text-black`}>
+              {quiz.title}
+            </h1>
+          </div>
+
+          {/* Deadline Section - Moved up */}
+          <div className="mt-12 text-center">
+            <h2 className="text-base font-['PP Object Sans'] text-black mb-4">Deadline</h2>
+            <div className="w-72 h-16 mx-auto bg-white/80 backdrop-blur-sm rounded-lg flex items-center justify-center">
+              <span className={`${styles['quiz-deadline']} text-2xl font-['PP Object Sans Bold'] text-black`}>
+                {timeLeft}
+              </span>
             </div>
+          </div>
+
+          {/* Start Quiz Button - Additional spacing (mt-8 instead of mt-4) */}
+          <div className="mt-8 flex justify-center">
+            <button
+              onClick={handleStartQuiz}
+              className={buttonStyles['animated-button']}
+            >
+              <div className={buttonStyles['button-content']}>
+                <span className="text-white text-base font-['PP Object Sans']">
+                  {isRegistered ? 'Continue Quiz' : 'Start Quiz'}
+                </span>
+              </div>
+            </button>
           </div>
         </div>
       </div>
