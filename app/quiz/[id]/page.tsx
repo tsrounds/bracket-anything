@@ -40,11 +40,13 @@ export default function QuizLandingPage() {
         const quizDoc = await getDoc(doc(db, 'quizzes', quizId));
         if (quizDoc.exists()) {
           const quizData = { id: quizDoc.id, ...quizDoc.data() } as Quiz;
+          console.log('Quiz data fetched:', quizData);
           setQuiz(quizData);
           
           // If quiz is completed, redirect to a message page
           if (quizData.status === 'completed') {
-            router.push(`/quiz/${quizId}/completed`);
+            console.log('Quiz is completed, redirecting to thank-you page');
+            router.push(`/quiz/${quizId}/thank-you`);
             return;
           }
 
