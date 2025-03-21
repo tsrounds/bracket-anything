@@ -1,6 +1,6 @@
 'use client';
 
-import { Component, ErrorInfo, ReactNode } from 'react';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
 
 interface Props {
   children: ReactNode;
@@ -11,14 +11,17 @@ interface State {
   error: Error | null;
 }
 
-export default class ErrorBoundary extends Component<Props, State> {
+class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
     error: null
   };
 
   public static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
+    return {
+      hasError: true,
+      error
+    };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
@@ -28,21 +31,31 @@ export default class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="max-w-md w-full p-6 bg-white rounded-lg shadow-lg">
-            <h2 className="text-2xl font-bold text-red-600 mb-4">Something went wrong</h2>
-            <div className="bg-red-50 p-4 rounded-md mb-4">
-              <p className="text-red-700 font-medium">Error details:</p>
-              <pre className="mt-2 text-sm text-red-600 overflow-auto">
-                {this.state.error?.message}
-              </pre>
+        <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+          <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+            <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+              <div className="sm:mx-auto sm:w-full sm:max-w-md">
+                <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+                  Something went wrong
+                </h2>
+                <div className="mt-2 text-center text-sm text-gray-600">
+                  <p>We're sorry, but something went wrong. Please try again later.</p>
+                  {process.env.NODE_ENV === 'development' && (
+                    <pre className="mt-4 p-4 bg-gray-100 rounded-md overflow-auto text-left">
+                      {this.state.error?.message}
+                    </pre>
+                  )}
+                </div>
+                <div className="mt-6">
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              </div>
             </div>
-            <button
-              onClick={() => this.setState({ hasError: false, error: null })}
-              className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
-            >
-              Try again
-            </button>
           </div>
         </div>
       );
@@ -50,4 +63,6 @@ export default class ErrorBoundary extends Component<Props, State> {
 
     return this.props.children;
   }
-} 
+}
+
+export default ErrorBoundary; 
