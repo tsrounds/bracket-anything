@@ -24,9 +24,13 @@ interface Quiz {
   }[];
 }
 
-export default function QuizContent() {
-  const [quiz, setQuiz] = useState<Quiz | null>(null);
-  const [loading, setLoading] = useState(true);
+interface QuizContentProps {
+  initialQuizData: Quiz | null;
+}
+
+export default function QuizContent({ initialQuizData }: QuizContentProps) {
+  const [quiz, setQuiz] = useState<Quiz | null>(initialQuizData);
+  const [loading, setLoading] = useState(!initialQuizData);
   const [isRegistered, setIsRegistered] = useState(false);
   const [timeLeft, setTimeLeft] = useState<string>('');
   const router = useRouter();
@@ -35,45 +39,26 @@ export default function QuizContent() {
   const { user } = useAuth();
 
   useEffect(() => {
-    const fetchQuizAndRegistration = async () => {
-      try {
-        const quizDoc = await getDoc(doc(db, 'quizzes', quizId));
-        if (quizDoc.exists()) {
-          const quizData = { id: quizDoc.id, ...quizDoc.data() } as Quiz;
-          console.log('Quiz data fetched:', quizData);
-          setQuiz(quizData);
-          
-          // If quiz is completed, redirect to a message page
-          if (quizData.status === 'completed') {
-            console.log('Quiz is completed, redirecting to thank-you page');
-            router.push(`/quiz/${quizId}/thank-you`);
-            return;
-          }
+    const checkRegistration = async () => {
+      if (!user || !quiz) return;
 
-          // Check if user is already registered
-          if (user) {
-            const registrationRef = doc(db, 'quizRegistrations', `${quizId}_${user.uid}`);
-            const registrationDoc = await getDoc(registrationRef);
-            const isUserRegistered = registrationDoc.exists();
-            setIsRegistered(isUserRegistered);
-            
-            // If user is not registered, redirect directly to registration page
-            if (!isUserRegistered) {
-              router.push(`/quiz/${quizId}/register`);
-            }
-          }
-        } else {
-          console.error('Quiz not found');
+      try {
+        const registrationRef = doc(db, 'quizRegistrations', `${quizId}_${user.uid}`);
+        const registrationDoc = await getDoc(registrationRef);
+        const isUserRegistered = registrationDoc.exists();
+        setIsRegistered(isUserRegistered);
+        
+        // If user is not registered, redirect directly to registration page
+        if (!isUserRegistered) {
+          router.push(`/quiz/${quizId}/register`);
         }
       } catch (error) {
-        console.error('Error fetching quiz:', error);
-      } finally {
-        setLoading(false);
+        console.error('Error checking registration:', error);
       }
     };
 
-    fetchQuizAndRegistration();
-  }, [quizId, router, user]);
+    checkRegistration();
+  }, [quizId, router, user, quiz]);
 
   useEffect(() => {
     if (!quiz?.deadline) return;

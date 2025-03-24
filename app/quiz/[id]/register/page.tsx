@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '../../../lib/firebase/firebase-client';
-import { collection, doc, setDoc, getDoc } from 'firebase/firestore';
+import firebase from 'firebase/compat/app';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../components/UserAuth';
 import UserAuth from '../../../components/UserAuth';
 import AvatarSelector from '../../../components/AvatarSelector';
-import Image from 'next/image';
+import RegistrationLayout from '../../../components/RegistrationLayout';
+import ConsolidatedRegistrationForm from '../../../components/ConsolidatedRegistrationForm';
 
 interface UserRegistration {
   name: string;
@@ -15,105 +16,106 @@ interface UserRegistration {
   avatar?: string;
 }
 
+const NameStep = ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
+  <div className="space-y-4">
+    <div className="text-2xl text-gray-700">What's your name?</div>
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full text-3xl font-light border-none focus:ring-0 focus:outline-none bg-transparent"
+      placeholder="Type your answer here..."
+      autoFocus
+    />
+  </div>
+);
+
+const PhoneStep = ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
+  <div className="space-y-4">
+    <div className="text-2xl text-gray-700">What's your phone number?</div>
+    <input
+      type="tel"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full text-3xl font-light border-none focus:ring-0 focus:outline-none bg-transparent"
+      placeholder="Type your answer here..."
+      autoFocus
+    />
+  </div>
+);
+
+const AvatarStep = ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
+  <div className="space-y-4">
+    <div className="text-2xl text-gray-700">Choose your avatar</div>
+    <div className="flex justify-center">
+      <AvatarSelector
+        onAvatarSelect={onChange}
+        initialAvatar={value}
+      />
+    </div>
+  </div>
+);
+
 export default function QuizRegistration({ params }: { params: { id: string } }) {
   const { user, loading: authLoading } = useAuth();
+  const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<UserRegistration>({
     name: '',
     phoneNumber: '',
     avatar: '',
   });
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [formPrefilled, setFormPrefilled] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [hasCheckedRegistration, setHasCheckedRegistration] = useState(false);
+  const [isRegistered, setIsRegistered] = useState(false);
   const router = useRouter();
 
-  useEffect(() => {
-    console.log('🔍 [REGISTER PAGE] Component mounted', {
-      quizId: params.id,
-      userId: user?.uid,
-      hasCheckedRegistration,
-      timestamp: new Date().toISOString()
-    });
+  const handleFieldChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
 
-    let isMounted = true;
+  const handleFinalSubmit = () => {
+    router.replace(`/quiz/${params.id}/take`);
+  };
 
-    const fetchUserProfile = async () => {
-      // Only fetch if we have a stable user state and haven't checked registration yet
-      if (user?.uid && !hasCheckedRegistration) {
-        try {
-          const userProfileDoc = await getDoc(doc(db, 'userProfiles', user.uid));
-          console.log('🔍 [REGISTER PAGE] User profile check:', {
-            exists: userProfileDoc.exists(),
-            userId: user.uid
-          });
-          if (userProfileDoc.exists() && isMounted) {
-            const profileData = userProfileDoc.data();
-            setFormData({
-              name: profileData.name || '',
-              phoneNumber: profileData.phoneNumber || '',
-              avatar: profileData.avatar || '',
-            });
-          }
-        } catch (error) {
-          console.error('🔍 [REGISTER PAGE] Error fetching user profile:', error);
-        } finally {
-          if (isMounted) {
-            setFormPrefilled(true);
-            setLoading(false);
-            setHasCheckedRegistration(true);
-          }
-        }
-      } else if (isMounted) {
-        setFormPrefilled(true);
-        setLoading(false);
-      }
-    };
+  const handleNext = () => {
+    if (currentStep < 3) {
+      setCurrentStep(currentStep + 1);
+    } else {
+      handleSubmit();
+    }
+  };
 
-    fetchUserProfile();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [user?.uid, hasCheckedRegistration]); // Add hasCheckedRegistration to dependencies
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setError('');
-    setLoading(true);
+    setIsSubmitting(true);
 
     try {
       if (!user?.uid) {
         throw new Error('Please sign in to continue');
       }
 
-      console.log('🔍 [REGISTER PAGE] Starting registration process:', {
-        quizId: params.id,
-        userId: user.uid,
-        formData,
-        timestamp: new Date().toISOString()
-      });
-
-      // Basic validation
-      if (!formData.name.trim()) {
-        throw new Error('Name is required');
-      }
-      if (!formData.phoneNumber.trim()) {
-        throw new Error('Phone number is required');
+      if (!db) {
+        throw new Error('Database not initialized');
       }
 
-      // Update user profile with any changes
-      await setDoc(doc(db, 'userProfiles', user.uid), {
+      if (!formData.name.trim() || !formData.phoneNumber.trim()) {
+        throw new Error('Please fill in all required fields');
+      }
+
+      const firestore = db as firebase.firestore.Firestore;
+
+      // Update user profile
+      await firestore.collection('userProfiles').doc(user.uid).set({
         name: formData.name.trim(),
         phoneNumber: formData.phoneNumber.trim(),
         avatar: formData.avatar || null,
       }, { merge: true });
 
-      console.log('🔍 [REGISTER PAGE] User profile updated');
-
-      // Create quiz registration document
-      const registrationRef = doc(db, 'quizRegistrations', `${params.id}_${user.uid}`);
-      await setDoc(registrationRef, {
+      // Create quiz registration
+      await firestore.collection('quizRegistrations').doc(`${params.id}_${user.uid}`).set({
         userId: user.uid,
         name: formData.name.trim(),
         phoneNumber: formData.phoneNumber.trim(),
@@ -122,28 +124,92 @@ export default function QuizRegistration({ params }: { params: { id: string } })
         createdAt: new Date().toISOString(),
       });
 
-      console.log('🔍 [REGISTER PAGE] Quiz registration created:', {
-        registrationRef: registrationRef.path,
-        userId: user.uid
-      });
+      // Set as registered before proceeding
+      setIsRegistered(true);
 
-      // Store user info in session storage for quiz completion
+      // Store session data
       sessionStorage.setItem('userId', user.uid);
       sessionStorage.setItem('userName', formData.name.trim());
       sessionStorage.setItem('quizId', params.id);
 
-      console.log('🔍 [REGISTER PAGE] Redirecting to take page');
-      
-      // Use replace to prevent back navigation
-      router.replace(`/quiz/${params.id}/take`);
+      // Show consolidated form instead of redirecting
+      setIsSubmitting(false);
     } catch (error) {
-      console.error('🔍 [REGISTER PAGE] Registration error:', error);
       setError(error instanceof Error ? error.message : 'Failed to register');
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  if (authLoading) {
+  // Single effect for data fetching
+  useEffect(() => {
+    const checkRegistration = async () => {
+      // Don't do anything while auth is loading
+      if (authLoading) {
+        console.log('Waiting for auth...');
+        return;
+      }
+
+      // If no user after auth is done loading, we can stop initializing
+      if (!user) {
+        console.log('No user found, stopping initialization');
+        setIsInitializing(false);
+        setHasCheckedRegistration(true);
+        return;
+      }
+
+      // Only proceed with data fetching if we haven't checked registration yet
+      if (!hasCheckedRegistration && db) {
+        try {
+          console.log('Checking registration status for user:', user.uid);
+          const firestore = db as firebase.firestore.Firestore;
+          
+          // Get user profile data
+          const userProfileDoc = await firestore.collection('userProfiles').doc(user.uid).get();
+          
+          if (userProfileDoc.exists) {
+            const profileData = userProfileDoc.data();
+            setFormData({
+              name: profileData?.name || '',
+              phoneNumber: profileData?.phoneNumber || '',
+              avatar: profileData?.avatar || '',
+            });
+          }
+
+          // Check quiz registration
+          const registrationId = `${params.id}_${user.uid}`;
+          const quizRegistrationDoc = await firestore
+            .collection('quizRegistrations')
+            .doc(registrationId)
+            .get();
+
+          console.log('Registration check complete:', { exists: quizRegistrationDoc.exists });
+          setIsRegistered(quizRegistrationDoc.exists);
+        } catch (error) {
+          console.error('Error checking registration:', error);
+        } finally {
+          setIsInitializing(false);
+          setHasCheckedRegistration(true);
+        }
+      }
+    };
+
+    checkRegistration();
+  }, [user, authLoading, params.id, hasCheckedRegistration]);
+
+  // Debug effect for state changes
+  useEffect(() => {
+    console.log('Component state:', { 
+      authLoading,
+      hasUser: !!user,
+      isInitializing,
+      hasCheckedRegistration,
+      isRegistered,
+      currentStep
+    });
+  }, [authLoading, user, isInitializing, hasCheckedRegistration, isRegistered, currentStep]);
+
+  // Show loading state during auth or data initialization
+  if (authLoading || (isInitializing && !hasCheckedRegistration)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -151,81 +217,88 @@ export default function QuizRegistration({ params }: { params: { id: string } })
     );
   }
 
+  // Show auth component if no user
   if (!user) {
     return <UserAuth />;
   }
 
-  // Show loading spinner if form data is not ready
-  if (!formPrefilled || (!formData.name && !formData.phoneNumber)) {
+  // Show consolidated form for registered users
+  if (isRegistered) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
+      <ConsolidatedRegistrationForm
+        formData={formData}
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleFinalSubmit();
+        }}
+        onChange={handleFieldChange}
+        error={error}
+        loading={isSubmitting}
+      />
     );
   }
 
+  // Show step-by-step form first
+  const renderStep = () => {
+    switch (currentStep) {
+      case 1:
+        return (
+          <NameStep
+            value={formData.name}
+            onChange={(value) => handleFieldChange('name', value)}
+          />
+        );
+      case 2:
+        return (
+          <PhoneStep
+            value={formData.phoneNumber}
+            onChange={(value) => handleFieldChange('phoneNumber', value)}
+          />
+        );
+      case 3:
+        return (
+          <AvatarStep
+            value={formData.avatar || ''}
+            onChange={(value) => handleFieldChange('avatar', value)}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  const canProceed = () => {
+    switch (currentStep) {
+      case 1:
+        return formData.name.trim().length > 0;
+      case 2:
+        return formData.phoneNumber.trim().length > 0;
+      case 3:
+        return true;
+      default:
+        return false;
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md mx-auto">
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-6">Register for Quiz</h1>
-          
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="flex justify-center mb-6">
-              <AvatarSelector 
-                onAvatarSelect={(avatar) => setFormData(prev => ({ ...prev, avatar }))}
-                initialAvatar={formData.avatar}
-              />
-            </div>
+    <RegistrationLayout currentStep={currentStep} totalSteps={3}>
+      <div className="space-y-8">
+        {renderStep()}
+        
+        {error && (
+          <div className="text-red-600 text-sm">
+            {error}
+          </div>
+        )}
 
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                Full Name
-              </label>
-              <input
-                type="text"
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                placeholder="Enter your full name"
-                required
-              />
-            </div>
-
-            <div>
-              <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700">
-                Phone Number
-              </label>
-              <input
-                type="tel"
-                id="phoneNumber"
-                value={formData.phoneNumber}
-                onChange={(e) => setFormData(prev => ({ ...prev, phoneNumber: e.target.value }))}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                placeholder="Enter your phone number"
-                required
-              />
-            </div>
-
-            {error && (
-              <div className="text-red-600 text-sm">
-                {error}
-              </div>
-            )}
-
-            <div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200 disabled:bg-blue-400"
-              >
-                {loading ? 'Registering...' : 'Continue to Quiz'}
-              </button>
-            </div>
-          </form>
-        </div>
+        <button
+          onClick={handleNext}
+          disabled={!canProceed() || isSubmitting}
+          className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200 disabled:bg-blue-400"
+        >
+          {currentStep === 3 ? (isSubmitting ? 'Starting...' : 'Start Quiz') : 'Continue'}
+        </button>
       </div>
-    </div>
+    </RegistrationLayout>
   );
 } 

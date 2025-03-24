@@ -9,17 +9,18 @@ export default function AuthCheck({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    
     console.log('AuthCheck mounted, setting up auth listener');
     
     try {
-      // Wait for Firebase to be initialized
-      if (typeof window === 'undefined') {
-        console.log('Running on server, skipping auth check');
-        return;
-      }
-
       // Verify auth is initialized
       if (!auth) {
         console.log('Auth not initialized yet, waiting...');
@@ -57,7 +58,11 @@ export default function AuthCheck({ children }: { children: React.ReactNode }) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
       setLoading(false);
     }
-  }, [router]);
+  }, [router, mounted]);
+
+  if (!mounted) {
+    return null;
+  }
 
   if (loading) {
     console.log('AuthCheck: Loading state');

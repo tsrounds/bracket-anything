@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { db } from '../../../lib/firebase/firebase-client';
+import firebase from 'firebase/compat/app';
 import { doc, getDoc, setDoc, collection } from 'firebase/firestore';
 import { useAuth } from '../../../components/UserAuth';
 import UserAuth from '../../../components/UserAuth';
@@ -43,16 +44,22 @@ export default function TakeQuiz({ params }: Props) {
 
   useEffect(() => {
     const fetchQuizAndCheckSubmission = async () => {
+      if (!db) {
+        console.error('Firestore instance not initialized');
+        return;
+      }
+
       try {
         // Fetch quiz data
-        const quizDoc = await getDoc(doc(db, 'quizzes', params.id));
+        const quizRef = doc(db as unknown as Parameters<typeof doc>[0], 'quizzes', params.id);
+        const quizDoc = await getDoc(quizRef);
         if (quizDoc.exists()) {
           setQuiz({ id: quizDoc.id, ...quizDoc.data() } as Quiz);
         }
 
         // Check for existing submission if user is logged in
         if (user) {
-          const submissionRef = doc(db, 'submissions', `${params.id}_${user.uid}`);
+          const submissionRef = doc(db as unknown as Parameters<typeof doc>[0], 'submissions', `${params.id}_${user.uid}`);
           const submissionDoc = await getDoc(submissionRef);
           
           if (submissionDoc.exists()) {
@@ -74,20 +81,28 @@ export default function TakeQuiz({ params }: Props) {
     e.preventDefault();
     setSubmitting(true);
 
+    if (!db) {
+      console.error('Firestore instance not initialized');
+      alert('Failed to submit quiz. Please try again.');
+      setSubmitting(false);
+      return;
+    }
+
     try {
       if (!user) {
         throw new Error('User not authenticated');
       }
 
       // Get user profile
-      const userProfileDoc = await getDoc(doc(db, 'userProfiles', user.uid));
+      const userProfileRef = doc(db as unknown as Parameters<typeof doc>[0], 'userProfiles', user.uid);
+      const userProfileDoc = await getDoc(userProfileRef);
       if (!userProfileDoc.exists()) {
         throw new Error('User profile not found');
       }
       const userProfile = userProfileDoc.data();
 
       // Create submission document with unique ID
-      const submissionRef = doc(db, 'submissions', `${params.id}_${user.uid}`);
+      const submissionRef = doc(db as unknown as Parameters<typeof doc>[0], 'submissions', `${params.id}_${user.uid}`);
       const submissionData = {
         userId: user.uid,
         userName: userProfile.name,
@@ -175,80 +190,94 @@ export default function TakeQuiz({ params }: Props) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
-      <div className={`${styles['quiz-container']} w-80 h-[688px] relative bg-white rounded-xl shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border border-gray-200`}>
-        <div className={`${styles['quiz-cover']} p-3 pb-[18px]`}>
-          <img
-            src={quiz.coverImage || "https://placehold.co/316x202"}
-            alt={quiz.title}
-            className="w-full h-52 rounded-lg shadow-[0px_4px_4px_0px_rgba(0,0,0,0.30)] object-cover"
-          />
+    <div className="min-h-screen flex items-center justify-center bg-slate-900">
+      <div className="w-96 relative bg-slate-900 overflow-hidden p-6">
+        {/* Quiz Title */}
+        <div className="text-white/50 text-sm font-['PP_Object_Sans']">
+          {quiz.title}
         </div>
 
-        <div className={`${styles['quiz-question-section']} absolute top-[238px] left-0 right-0 px-3`}>
-          <div className={`${styles['quiz-content']} transition-opacity duration-300 ${fadeOut ? 'opacity-0' : 'opacity-100'}`}>
-            <h2 className={`${styles['quiz-title']} text-xl font-normal font-['Inter'] text-black mb-[18px] text-center px-4`}>
-              {currentQuestion.text}
-            </h2>
+        {/* Question Number */}
+        <div className="mt-4 text-white text-3xl font-extrabold font-['PP_Object_Sans']">
+          Question {currentQuestionIndex + 1}
+        </div>
 
-            <div className={`${styles['quiz-options']} space-y-[18px]`}>
-              {currentQuestion.options.map((option) => {
-                const isSelected = answers[currentQuestion.id] === option;
-                console.log('Option:', option, 'Selected:', isSelected);
-                
-                return (
-                  <button
-                    key={option}
-                    onClick={() => handleAnswerSelect(currentQuestion.id, option)}
-                    className={`${styles['quiz-option']} h-12 relative rounded-lg shadow-[0px_4px_4px_0px_rgba(0,0,0,0.30)] group transition-all duration-300 ${
-                      isSelected
-                        ? 'bg-[#ACC676] transform scale-[1.02]'
-                        : 'bg-neutral-900/60 hover:transform hover:scale-[1.02]'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between px-6 py-3">
-                      <span className="text-white text-base font-normal font-['Inter']">
-                        {option}
-                      </span>
-                      <div className="relative w-6 h-6 flex items-center justify-center">
-                        {isSelected ? (
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <svg 
-                              className="w-6 h-6 text-white"
-                              fill="none" 
-                              viewBox="0 0 24 24" 
-                              stroke="currentColor"
-                            >
-                              <path 
-                                strokeLinecap="round" 
-                                strokeLinejoin="round" 
-                                strokeWidth={3} 
-                                d="M5 13l4 4L19 7" 
-                              />
-                            </svg>
-                          </div>
-                        ) : (
-                          <div className="w-6 h-6 rounded-full border-[2.46px] border-white" />
-                        )}
+        {/* Progress Tracker */}
+        <div className="mt-4 flex gap-2">
+          {quiz.questions.map((_, index) => (
+            <div
+              key={index}
+              className={`w-4 h-[3px] rounded-[10px] ${
+                index < currentQuestionIndex
+                  ? 'bg-[#acc676]'
+                  : index === currentQuestionIndex
+                  ? 'bg-cyan-400'
+                  : 'bg-zinc-300 bg-opacity-20'
+              }`}
+            />
+          ))}
+        </div>
+
+        {/* Question Text */}
+        <div className={`mt-8 text-white text-2xl font-normal font-['PP_Object_Sans'] text-center transition-opacity duration-300 ${fadeOut ? 'opacity-0' : 'opacity-100'}`}>
+          {currentQuestion.text}
+        </div>
+
+        {/* Answer Options */}
+        <div className="mt-16 space-y-4">
+          {currentQuestion.options.map((option) => {
+            const isSelected = answers[currentQuestion.id] === option;
+            
+            return (
+              <button
+                key={option}
+                onClick={() => handleAnswerSelect(currentQuestion.id, option)}
+                className={`w-full h-12 relative rounded-lg transition-all duration-300 group
+                  ${isSelected 
+                    ? 'bg-[#acc676] border-none' 
+                    : 'bg-transparent border border-white hover:opacity-80'}`}
+              >
+                <div className="flex items-center justify-between px-6">
+                  <span className={`text-base font-normal font-['PP_Object_Sans'] ${isSelected ? 'text-white' : 'text-white'}`}>
+                    {option}
+                  </span>
+                  <div className="relative w-6 h-6 flex items-center justify-center">
+                    {isSelected ? (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <svg 
+                          className="w-6 h-6 text-white"
+                          fill="none" 
+                          viewBox="0 0 24 24" 
+                          stroke="currentColor"
+                        >
+                          <path 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round" 
+                            strokeWidth={3} 
+                            d="M5 13l4 4L19 7" 
+                          />
+                        </svg>
                       </div>
-                    </div>
-                  </button>
-                );
-              })}
-
-              {currentQuestionIndex === totalQuestions - 1 && (
-                <div className={`${styles['quiz-submit']} flex justify-center`}>
-                  <button
-                    onClick={handleSubmit}
-                    disabled={submitting || Object.keys(answers).length !== totalQuestions}
-                    className="w-48 h-12 relative rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-all duration-300"
-                  >
-                    {submitting ? 'Submitting...' : 'Submit Quiz'}
-                  </button>
+                    ) : (
+                      <div className="w-6 h-6 rounded-full border-[2.46px] border-white" />
+                    )}
+                  </div>
                 </div>
-              )}
+              </button>
+            );
+          })}
+
+          {currentQuestionIndex === totalQuestions - 1 && (
+            <div className="flex justify-center mt-6">
+              <button
+                onClick={handleSubmit}
+                disabled={submitting || Object.keys(answers).length !== totalQuestions}
+                className="w-48 h-12 relative rounded-lg bg-[#F58143] text-white hover:opacity-90 disabled:opacity-50 transition-all duration-300 font-['PP_Object_Sans']"
+              >
+                {submitting ? 'Submitting...' : 'Submit Quiz'}
+              </button>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

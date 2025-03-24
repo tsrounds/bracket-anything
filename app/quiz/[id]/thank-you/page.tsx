@@ -146,6 +146,10 @@ export default function ThankYouPage({ params, searchParams }: { params: { id: s
   useEffect(() => {
     const fetchQuizAndSubmissions = async () => {
       try {
+        if (!db) {
+          throw new Error('Firebase db is not initialized');
+        }
+
         // Fetch quiz data
         const quizDoc = await getDoc(doc(db, 'quizzes', params.id));
         if (quizDoc.exists()) {
@@ -163,23 +167,51 @@ export default function ThankYouPage({ params, searchParams }: { params: { id: s
             ...doc.data()
           })) as Submission[];
 
+          // Add detailed logging for submissions before sorting
+          console.log('All submissions before sorting:', allSubmissions.map(sub => ({
+            id: sub.id,
+            userName: sub.userName,
+            score: sub.score,
+            scoreType: sub.score !== undefined ? typeof sub.score : 'undefined',
+            submittedAt: sub.submittedAt
+          })));
+
           // Sort submissions by score (if completed) or submission time
           const sortedSubmissions = allSubmissions.sort((a, b) => {
-            if (a.score !== undefined && b.score !== undefined) {
-              return b.score - a.score;
+            if (quizData.status === 'completed') {
+              // Convert scores to numbers and handle undefined/null values
+              const scoreA = typeof a.score === 'number' ? a.score : 0;
+              const scoreB = typeof b.score === 'number' ? b.score : 0;
+              
+              if (scoreA !== scoreB) {
+                return scoreB - scoreA; // Higher scores first
+              }
             }
-            return new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime();
+            
+            // If scores are equal or quiz is in progress, sort by submission time
+            const timeA = new Date(a.submittedAt).getTime();
+            const timeB = new Date(b.submittedAt).getTime();
+            return timeA - timeB; // Earlier submissions first
           });
+
+          // Log final sorted submissions
+          console.log('Sorted submissions:', sortedSubmissions.map(sub => ({
+            id: sub.id,
+            userName: sub.userName,
+            score: sub.score,
+            scoreType: sub.score !== undefined ? typeof sub.score : 'undefined',
+            submittedAt: sub.submittedAt
+          })));
 
           setSubmissions(sortedSubmissions);
 
-          // Find user's submission using userId instead of userName
+          // Find user's submission using userId
           if (user) {
             const userSub = sortedSubmissions.find(sub => sub.userId === user.uid);
             if (userSub) {
               setUserSubmission(userSub);
               
-              // Analyze answers for unique and universal matches
+              // Only analyze answers for in-progress quizzes
               if (quizData.status === 'in-progress') {
                 const userAnswers = userSub.answers;
                 const otherSubmissions = sortedSubmissions.filter(sub => sub.id !== userSub.id);
@@ -310,17 +342,22 @@ export default function ThankYouPage({ params, searchParams }: { params: { id: s
                 ? "You've already entered!"
                 : quiz.status === 'in-progress' 
                   ? "Congrats! You're in."
-                  : "The results are in!"
+                  : userScore !== undefined
+                    ? `Your Score: ${userScore}/${totalPoints} correct`
+                    : "Quiz Completed"
               }
             </h1>
             
             {quiz.status === 'completed' && userScore !== undefined && (
               <div className="text-lg">
-                <p className="font-semibold text-gray-900">
-                  Your Score: {userScore}/{totalPoints} correct
-                </p>
-                <p className="text-gray-600 mt-1">
-                  Ranked #{userRank} globally
+                <p className="text-gray-600">
+                  {userRank === 1 
+                    ? "You came in 1st!" 
+                    : userRank === 2 
+                      ? "You came in 2nd!" 
+                      : userRank === 3 
+                        ? "You came in 3rd!" 
+                        : `You came in ${userRank}th!`}
                 </p>
               </div>
             )}
@@ -373,46 +410,6 @@ export default function ThankYouPage({ params, searchParams }: { params: { id: s
             </div>
           )}
 
-          {/* Results Section */}
-          {quiz.status === 'completed' && userSubmission && (
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Your Results</h2>
-              <div className="space-y-4">
-                {quiz.questions.map((question) => {
-                  const userAnswer = userSubmission.answers[question.id];
-                  const correctAnswer = quiz.correctAnswers?.[question.id];
-                  const isCorrect = userAnswer === correctAnswer;
-
-                  return (
-                    <div 
-                      key={question.id} 
-                      className={`p-4 rounded-lg border ${
-                        isCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
-                      }`}
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="text-gray-900 font-medium">{question.text}</h3>
-                        <span className={`px-2 py-1 rounded text-sm font-medium ${
-                          isCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
-                          {isCorrect ? `+${question.points}` : '0'} points
-                        </span>
-                      </div>
-                      <div className="space-y-1 text-sm">
-                        <p className="text-gray-600">
-                          Your answer: <span className="font-medium">{userAnswer}</span>
-                        </p>
-                        <p className="text-gray-600">
-                          Correct answer: <span className="font-medium">{correctAnswer}</span>
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
           {/* Leaderboard Section */}
           {quiz.status === 'completed' && submissions.length > 0 && (
             <div className="mt-6">
@@ -462,6 +459,46 @@ export default function ThankYouPage({ params, searchParams }: { params: { id: s
                             </div>
                           )}
                         </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Results Section */}
+          {quiz.status === 'completed' && userSubmission && (
+            <div className="mt-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Your Results</h2>
+              <div className="space-y-4">
+                {quiz.questions.map((question) => {
+                  const userAnswer = userSubmission.answers[question.id];
+                  const correctAnswer = quiz.correctAnswers?.[question.id];
+                  const isCorrect = userAnswer === correctAnswer;
+
+                  return (
+                    <div 
+                      key={question.id} 
+                      className={`p-4 rounded-lg border ${
+                        isCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="text-gray-900 font-medium">{question.text}</h3>
+                        <span className={`px-2 py-1 rounded text-sm font-medium ${
+                          isCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {isCorrect ? `+${question.points}` : '0'} points
+                        </span>
+                      </div>
+                      <div className="space-y-1 text-sm">
+                        <p className="text-gray-600">
+                          Your answer: <span className="font-medium">{userAnswer}</span>
+                        </p>
+                        <p className="text-gray-600">
+                          Correct answer: <span className="font-medium">{correctAnswer}</span>
+                        </p>
                       </div>
                     </div>
                   );

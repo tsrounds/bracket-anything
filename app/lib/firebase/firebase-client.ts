@@ -21,9 +21,9 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-let app: firebase.app.App;
-let auth: firebase.auth.Auth;
-let db: firebase.firestore.Firestore;
+let app: firebase.app.App | null = null;
+let auth: firebase.auth.Auth | null = null;
+let db: firebase.firestore.Firestore | null = null;
 
 if (typeof window !== 'undefined') {
   try {
@@ -61,10 +61,6 @@ if (typeof window !== 'undefined') {
   }
 } else {
   console.log('Firebase initialization skipped - running on server');
-  // Initialize with empty instances for server-side rendering
-  app = {} as firebase.app.App;
-  auth = {} as firebase.auth.Auth;
-  db = {} as firebase.firestore.Firestore;
 }
 
 export { app, auth, db }; 

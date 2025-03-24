@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { db } from '../../lib/firebase/firebase-client';
-import { collection, getDocs, query, orderBy, doc, updateDoc } from 'firebase/firestore';
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/firestore';
 import Link from 'next/link';
 import AnswerSelectionModal from '../../components/AnswerSelectionModal';
 
@@ -47,13 +48,11 @@ export default function Quizzes() {
           throw new Error('Firebase db is not initialized');
         }
 
-        const quizzesQuery = query(
-          collection(db, 'quizzes'),
-          orderBy('createdAt', 'desc')
-        );
+        const firestore = db!;
+        const quizzesQuery = firestore.collection('quizzes').orderBy('createdAt', 'desc');
         
         console.log('Created query, fetching docs...');
-        const querySnapshot = await getDocs(quizzesQuery);
+        const querySnapshot = await quizzesQuery.get();
         const quizzesList = querySnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
@@ -78,7 +77,7 @@ export default function Quizzes() {
   const handleStatusChange = async (quizId: string, currentStatus: 'in-progress' | 'completed') => {
     try {
       setUpdating(quizId);
-      const quizRef = doc(db, 'quizzes', quizId);
+      const quizRef = db!.collection('quizzes').doc(quizId);
       const newStatus = currentStatus === 'in-progress' ? 'completed' : 'in-progress';
       
       console.log('Updating quiz status in Firebase:', {
@@ -87,7 +86,7 @@ export default function Quizzes() {
         newStatus
       });
       
-      await updateDoc(quizRef, {
+      await quizRef.update({
         status: newStatus
       });
       
@@ -118,11 +117,12 @@ export default function Quizzes() {
   };
 
   const handleAnswerSubmit = async (answers: Record<string, string>) => {
-    if (!selectedQuiz) return;
+    if (!selectedQuiz || !db) return;
 
     try {
       setUpdating(selectedQuiz.id);
-      const quizRef = doc(db, 'quizzes', selectedQuiz.id);
+      const firestore = db!;
+      const quizRef = firestore.collection('quizzes').doc(selectedQuiz.id);
       
       console.log('Submitting answers for quiz:', {
         quizId: selectedQuiz.id,
@@ -130,13 +130,74 @@ export default function Quizzes() {
         answers
       });
       
-      await updateDoc(quizRef, {
-        status: 'completed',
-        correctAnswers: answers,
-        completedAt: new Date().toISOString()
+      // First, update the quiz status and correct answers
+      try {
+        await quizRef.update({
+          status: 'completed',
+          correctAnswers: answers,
+          completedAt: new Date().toISOString()
+        });
+        console.log('Successfully updated quiz status and answers');
+      } catch (error) {
+        console.error('Error updating quiz document:', error);
+        throw new Error('Failed to update quiz status');
+      }
+      
+      // Then, get all submissions for this quiz
+      const submissionsQuery = firestore.collection('submissions').where('quizId', '==', selectedQuiz.id);
+      const submissionsSnapshot = await submissionsQuery.get();
+      
+      // Calculate scores for each submission
+      const scoreUpdates = submissionsSnapshot.docs.map(doc => {
+        const submission = doc.data();
+        let score = 0;
+        console.log('Calculating score for submission:', {
+          submissionId: doc.id,
+          userName: submission.userName,
+          answers: submission.answers
+        });
+        
+        Object.entries(submission.answers).forEach(([questionId, answer]) => {
+          const isCorrect = answer === answers[questionId];
+          const question = selectedQuiz.questions.find(q => q.id === questionId);
+          console.log('Checking answer:', {
+            questionId,
+            userAnswer: answer,
+            correctAnswer: answers[questionId],
+            isCorrect,
+            questionPoints: question?.points
+          });
+          
+          if (isCorrect && question) {
+            score += question.points;
+          }
+        });
+        
+        console.log('Final score calculated:', {
+          submissionId: doc.id,
+          userName: submission.userName,
+          score
+        });
+        
+        return { docRef: doc.ref, score };
       });
       
-      console.log('Successfully stored answers in Firebase');
+      // Update all submissions with their scores
+      try {
+        await Promise.all(
+          scoreUpdates.map(async ({ docRef, score }) => {
+            console.log('Updating submission score:', {
+              submissionId: docRef.id,
+              score
+            });
+            await docRef.update({ score });
+          })
+        );
+        console.log('Successfully updated all submission scores:', scoreUpdates);
+      } catch (error) {
+        console.error('Error updating submission scores:', error);
+        // Don't throw here, as the quiz is already marked as completed
+      }
       
       // Update local state
       setQuizzes(prevQuizzes =>
@@ -150,8 +211,8 @@ export default function Quizzes() {
       setIsModalOpen(false);
       setSelectedQuiz(null);
     } catch (error) {
-      console.error('Error updating quiz with answers:', error);
-      alert('Failed to complete quiz');
+      console.error('Error in handleAnswerSubmit:', error);
+      alert(error instanceof Error ? error.message : 'Failed to complete quiz');
     } finally {
       setUpdating(null);
     }
@@ -159,7 +220,14 @@ export default function Quizzes() {
 
   const handleShare = async (quizId: string) => {
     try {
-      // Get the current URL and construct the quiz URL
+      // For completed quizzes, navigate to the thank you page which shows the leaderboard
+      const quiz = quizzes.find(q => q.id === quizId);
+      if (quiz?.status === 'completed') {
+        window.open(`/quiz/${quizId}/thank-you`, '_blank');
+        return;
+      }
+
+      // For in-progress quizzes, keep the share functionality
       const baseUrl = window.location.origin;
       const quizUrl = `${baseUrl}/quiz/${quizId}`;
       
@@ -170,8 +238,8 @@ export default function Quizzes() {
       setCopiedQuizId(quizId);
       setTimeout(() => setCopiedQuizId(null), 2000);
     } catch (error) {
-      console.error('Error copying to clipboard:', error);
-      alert('Failed to copy URL to clipboard');
+      console.error('Error:', error);
+      alert('Failed to perform action');
     }
   };
 
@@ -238,7 +306,7 @@ export default function Quizzes() {
                               onClick={() => handleShare(quiz.id)}
                               className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                             >
-                              {copiedQuizId === quiz.id ? 'Copied!' : 'Share Quiz'}
+                              {quiz.status === 'completed' ? 'Leaderboard' : (copiedQuizId === quiz.id ? 'Copied!' : 'Share Quiz')}
                             </button>
                             <button
                               onClick={() => handleCompleteClick(quiz)}
@@ -294,7 +362,7 @@ export default function Quizzes() {
                               onClick={() => handleShare(quiz.id)}
                               className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                             >
-                              {copiedQuizId === quiz.id ? 'Copied!' : 'Share Quiz'}
+                              {quiz.status === 'completed' ? 'Leaderboard' : (copiedQuizId === quiz.id ? 'Copied!' : 'Share Quiz')}
                             </button>
                             <button
                               onClick={() => handleStatusChange(quiz.id, quiz.status)}

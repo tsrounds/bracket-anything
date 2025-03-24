@@ -31,6 +31,10 @@ interface Quiz {
 const getQuizData = cache(async (quizId: string) => {
   console.log('Fetching quiz data for ID:', quizId);
   try {
+    if (!adminDb) {
+      throw new Error('Firebase Admin database not initialized');
+    }
+
     const docRef = adminDb.collection('quizzes').doc(quizId);
     console.log('Doc ref created:', docRef.path);
     
@@ -47,6 +51,13 @@ const getQuizData = cache(async (quizId: string) => {
     return data;
   } catch (error) {
     console.error('Error fetching quiz data:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+    }
     throw error;
   }
 });
@@ -95,6 +106,13 @@ export async function generateMetadata(
     return metadata;
   } catch (error) {
     console.error('Error generating metadata:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+    }
     return {
       title: 'Error Loading Quiz',
       description: 'There was an error loading the quiz.',
@@ -103,30 +121,7 @@ export async function generateMetadata(
 }
 
 export default async function QuizPage({ params }: Props) {
-  try {
-    // Pre-fetch the quiz data to ensure it exists
-    const quiz = await getQuizData(params.id);
-    if (!quiz) {
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Quiz Not Found</h1>
-            <p className="text-gray-600">The quiz you're looking for doesn't exist or has been removed.</p>
-          </div>
-        </div>
-      );
-    }
-    
-    return <QuizContent />;
-  } catch (error) {
-    console.error('Error in QuizPage:', error);
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Error Loading Quiz</h1>
-          <p className="text-gray-600">There was an error loading the quiz. Please try again later.</p>
-        </div>
-      </div>
-    );
-  }
+  const quizData = await getQuizData(params.id);
+  
+  return <QuizContent initialQuizData={quizData} />;
 } 
