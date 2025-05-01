@@ -192,92 +192,148 @@ export default function TakeQuiz({ params }: Props) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-900">
       <div className="w-96 relative bg-slate-900 overflow-hidden p-6">
-        {/* Quiz Title */}
-        <div className="text-white/50 text-sm font-['PP_Object_Sans']">
-          {quiz.title}
+        {/* Fixed Header Section */}
+        <div className="h-[160px] flex flex-col">
+          {/* Quiz Title - fixed height */}
+          <div className="h-[24px] text-white/50 text-sm font-['PP_Object_Sans']">
+            {quiz.title}
+          </div>
+
+          {/* Question Number - fixed height */}
+          <div className="h-[48px] mt-4 text-white text-3xl font-extrabold font-['PP_Object_Sans']">
+            Question {currentQuestionIndex + 1}
+          </div>
+
+          {/* Progress Tracker - fixed height */}
+          <div className="h-[24px] mt-4 flex gap-2">
+            {quiz.questions.map((_, index) => (
+              <div
+                key={index}
+                className={`w-4 h-[3px] rounded-[10px] ${
+                  index < currentQuestionIndex
+                    ? 'bg-[#acc676]'
+                    : index === currentQuestionIndex
+                    ? 'bg-cyan-400'
+                    : 'bg-zinc-300 bg-opacity-20'
+                }`}
+              />
+            ))}
+          </div>
+
+          {/* Question Text - fixed height */}
+          <div className={`h-[64px] mt-8 text-white text-2xl font-normal font-['PP_Object_Sans'] text-center transition-opacity duration-300 ${fadeOut ? 'opacity-0' : 'opacity-100'}`}>
+            {currentQuestion.text}
+          </div>
         </div>
 
-        {/* Question Number */}
-        <div className="mt-4 text-white text-3xl font-extrabold font-['PP_Object_Sans']">
-          Question {currentQuestionIndex + 1}
-        </div>
-
-        {/* Progress Tracker */}
-        <div className="mt-4 flex gap-2">
-          {quiz.questions.map((_, index) => (
-            <div
-              key={index}
-              className={`w-4 h-[3px] rounded-[10px] ${
-                index < currentQuestionIndex
-                  ? 'bg-[#acc676]'
-                  : index === currentQuestionIndex
-                  ? 'bg-cyan-400'
-                  : 'bg-zinc-300 bg-opacity-20'
-              }`}
-            />
-          ))}
-        </div>
-
-        {/* Question Text */}
-        <div className={`mt-8 text-white text-2xl font-normal font-['PP_Object_Sans'] text-center transition-opacity duration-300 ${fadeOut ? 'opacity-0' : 'opacity-100'}`}>
-          {currentQuestion.text}
-        </div>
-
-        {/* Answer Options */}
-        <div className="mt-16 space-y-4">
-          {currentQuestion.options.map((option) => {
-            const isSelected = answers[currentQuestion.id] === option;
-            
-            return (
-              <button
-                key={option}
-                onClick={() => handleAnswerSelect(currentQuestion.id, option)}
-                className={`w-full h-12 relative rounded-lg transition-all duration-300 group
-                  ${isSelected 
-                    ? 'bg-[#acc676] border-none' 
-                    : 'bg-transparent border border-white hover:opacity-80'}`}
-              >
-                <div className="flex items-center justify-between px-6">
-                  <span className={`text-base font-normal font-['PP_Object_Sans'] ${isSelected ? 'text-white' : 'text-white'}`}>
-                    {option}
-                  </span>
-                  <div className="relative w-6 h-6 flex items-center justify-center">
-                    {isSelected ? (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <svg 
-                          className="w-6 h-6 text-white"
-                          fill="none" 
-                          viewBox="0 0 24 24" 
-                          stroke="currentColor"
-                        >
-                          <path 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round" 
-                            strokeWidth={3} 
-                            d="M5 13l4 4L19 7" 
-                          />
-                        </svg>
-                      </div>
-                    ) : (
-                      <div className="w-6 h-6 rounded-full border-[2.46px] border-white" />
-                    )}
+        {/* Scrollable Content Section */}
+        <div className="mt-16">
+          {/* Answer Options */}
+          <div className="space-y-4">
+            {currentQuestion.options.map((option) => {
+              const isSelected = answers[currentQuestion.id] === option;
+              
+              return (
+                <button
+                  key={option}
+                  onClick={() => handleAnswerSelect(currentQuestion.id, option)}
+                  className={`w-full h-12 relative rounded-lg transition-all duration-300 group
+                    ${isSelected 
+                      ? 'bg-[#acc676] border-none' 
+                      : 'bg-transparent border border-white hover:opacity-80'}`}
+                >
+                  <div className="flex items-center justify-between px-6">
+                    <span className={`text-base font-normal font-['PP_Object_Sans'] ${isSelected ? 'text-white' : 'text-white'}`}>
+                      {option}
+                    </span>
+                    <div className="relative w-6 h-6 flex items-center justify-center">
+                      {isSelected && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <svg 
+                            className="w-6 h-6 text-white"
+                            fill="none" 
+                            viewBox="0 0 24 24" 
+                            stroke="currentColor"
+                          >
+                            <path 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round" 
+                              strokeWidth={2} 
+                              d="M5 13l4 4L19 7" 
+                            />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </button>
-            );
-          })}
+                </button>
+              );
+            })}
+          </div>
 
-          {currentQuestionIndex === totalQuestions - 1 && (
-            <div className="flex justify-center mt-6">
+          {/* Navigation Buttons */}
+          <div className="mt-8 flex items-center justify-between">
+            {/* Previous Button */}
+            <button
+              onClick={handlePrevious}
+              disabled={currentQuestionIndex === 0}
+              className={`p-2 rounded-lg transition-all duration-300 ${
+                currentQuestionIndex === 0 
+                  ? 'opacity-0 pointer-events-none' 
+                  : 'text-cyan-400 hover:bg-cyan-400/10'
+              }`}
+            >
+              <svg
+                className="w-8 h-8"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </button>
+
+            {/* Submit Button (only show on last question) */}
+            {currentQuestionIndex === totalQuestions - 1 ? (
               <button
                 onClick={handleSubmit}
-                disabled={submitting || Object.keys(answers).length !== totalQuestions}
+                disabled={submitting}
                 className="w-48 h-12 relative rounded-lg bg-[#F58143] text-white hover:opacity-90 disabled:opacity-50 transition-all duration-300 font-['PP_Object_Sans']"
               >
                 {submitting ? 'Submitting...' : 'Submit Quiz'}
               </button>
-            </div>
-          )}
+            ) : (
+              /* Next Button (show when not on last question and we've gone back) */
+              <button
+                onClick={handleNext}
+                disabled={currentQuestionIndex === totalQuestions - 1}
+                className={`p-2 rounded-lg transition-all duration-300 ${
+                  Object.keys(answers).includes(currentQuestion.id)
+                    ? 'text-cyan-400 hover:bg-cyan-400/10'
+                    : 'opacity-0 pointer-events-none'
+                }`}
+              >
+                <svg
+                  className="w-8 h-8"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

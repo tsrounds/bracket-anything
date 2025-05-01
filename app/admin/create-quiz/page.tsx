@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '../../lib/firebase/firebase-client';
-import { collection, addDoc, getDocs, query, orderBy, startAt, endAt, doc, setDoc } from 'firebase/firestore';
+import { collection, addDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import AuthCheck from '../../components/AuthCheck';
 import ErrorBoundary from '../../components/ErrorBoundary';
@@ -13,6 +13,15 @@ interface Question {
   text: string;
   points: number;
   options?: string[];
+}
+
+interface QuizData {
+  title: string;
+  createdAt: string;
+  status: 'in-progress' | 'completed';
+  questions: Question[];
+  coverImage?: string;
+  deadline: string;
 }
 
 function CreateQuizContent() {
@@ -35,7 +44,8 @@ function CreateQuizContent() {
     if (typeof window !== 'undefined') {
       console.log('Firebase client status:', {
         hasDb: !!db,
-        dbType: typeof db
+        dbType: typeof db,
+        dbConstructor: db?.constructor?.name
       });
     }
   }, []);
@@ -147,22 +157,30 @@ function CreateQuizContent() {
         throw new Error('Title is required');
       }
 
-      const quizData = {
+      if (!db) {
+        throw new Error('Firestore database not initialized');
+      }
+
+      const quizData: QuizData = {
         title: title.trim(),
         createdAt: new Date().toISOString(),
-        status: 'in-progress',
+        status: 'in-progress' as const,
         questions,
         coverImage,
         deadline: new Date(deadline).toISOString()
       };
 
-      console.log('Quiz data to be saved:', {
-        ...quizData,
-        questions: questions.map(q => ({ ...q, options: q.options?.length }))
-      });
+      console.log('Quiz data to be saved:', quizData);
 
       console.log('Attempting to save to Firestore...');
-      const docRef = await addDoc(collection(db, 'quizzes'), quizData);
+      
+      if (typeof window === 'undefined') {
+        throw new Error('Cannot create quiz on server side');
+      }
+
+      // Create a properly typed reference to the collection
+      const quizzesCollection = collection(db, 'quizzes');
+      const docRef = await addDoc(quizzesCollection, quizData);
       console.log('Quiz created successfully with ID:', docRef.id);
 
       console.log('Redirecting to quizzes list...');

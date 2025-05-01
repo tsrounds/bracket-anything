@@ -151,7 +151,7 @@ export default function ThankYouPage({ params, searchParams }: { params: { id: s
         }
 
         // Fetch quiz data
-        const quizDoc = await getDoc(doc(db, 'quizzes', params.id));
+        const quizDoc = await getDoc(doc(db as unknown as Parameters<typeof doc>[0], 'quizzes', params.id));
         if (quizDoc.exists()) {
           const quizData = { id: quizDoc.id, ...quizDoc.data() } as Quiz;
           setQuiz(quizData);

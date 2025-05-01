@@ -47,16 +47,24 @@ export default function QuizDetailsPage() {
 
   useEffect(() => {
     const fetchQuizAndSubmissions = async () => {
+      if (!db) {
+        console.error('Firebase database not initialized');
+        setLoading(false);
+        return;
+      }
+
       try {
         // Fetch quiz data
-        const quizDoc = await getDoc(doc(db, 'quizzes', quizId));
+        const quizRef = doc(db as unknown as Parameters<typeof doc>[0], 'quizzes', quizId);
+        const quizDoc = await getDoc(quizRef);
         if (quizDoc.exists()) {
           const quizData = { id: quizDoc.id, ...quizDoc.data() } as Quiz;
           setQuiz(quizData);
 
           // Fetch all submissions for this quiz
+          const submissionsRef = collection(db as unknown as Parameters<typeof doc>[0], 'submissions');
           const submissionsQuery = query(
-            collection(db, 'submissions'),
+            submissionsRef,
             where('quizId', '==', quizId)
           );
           const submissionsSnapshot = await getDocs(submissionsQuery);

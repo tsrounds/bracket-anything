@@ -13,7 +13,7 @@ function getFirebaseAdmin() {
     }
 
     // Get environment variables
-    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    const projectId = process.env.FIREBASE_PROJECT_ID;
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
     let privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
@@ -22,7 +22,8 @@ function getFirebaseAdmin() {
       hasClientEmail: !!clientEmail,
       hasPrivateKey: !!privateKey,
       projectId,
-      clientEmail: clientEmail ? `${clientEmail.substring(0, 5)}...` : undefined
+      clientEmail: clientEmail ? `${clientEmail.substring(0, 5)}...` : undefined,
+      privateKeyPreview: privateKey ? `${privateKey.substring(0, 50)}...` : undefined
     });
 
     if (!projectId || !clientEmail || !privateKey) {
@@ -38,11 +39,13 @@ function getFirebaseAdmin() {
       privateKey = privateKey.replace(/\\n/g, '\n');
     }
 
-    // 3. Verify the key has the correct format
-    if (!privateKey.includes('-----BEGIN PRIVATE KEY-----') || 
-        !privateKey.includes('-----END PRIVATE KEY-----')) {
-      throw new Error('Invalid private key format. The key must include BEGIN and END markers.');
+    // 3. Add BEGIN/END markers if they're missing
+    if (!privateKey.includes('BEGIN PRIVATE KEY') && !privateKey.includes('END PRIVATE KEY')) {
+      privateKey = `-----BEGIN PRIVATE KEY-----\n${privateKey}\n-----END PRIVATE KEY-----`;
     }
+
+    // 4. Ensure proper newline format
+    privateKey = privateKey.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
     // Initialize new instance
     const app = initializeApp({
@@ -63,7 +66,7 @@ function getFirebaseAdmin() {
         Firebase Admin initialization failed. Please check:
         1. You have added FIREBASE_CLIENT_EMAIL to .env.local
         2. You have added FIREBASE_PRIVATE_KEY to .env.local
-        3. You have added NEXT_PUBLIC_FIREBASE_PROJECT_ID to .env.local
+        3. You have added FIREBASE_PROJECT_ID to .env.local
         4. The private key format should be either:
            - Single line with escaped newlines: "-----BEGIN PRIVATE KEY-----\\nYOUR_KEY\\n-----END PRIVATE KEY-----"
            - Multiple lines with actual newlines:

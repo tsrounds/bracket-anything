@@ -14,7 +14,9 @@ export default function LoginPage() {
   const [initializing, setInitializing] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    if (!auth) return;
+    
+    const unsubscribe = onAuthStateChanged(auth as any, (user) => {
       if (user) {
         router.push('/admin');
       }
@@ -30,17 +32,13 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      router.push('/admin');
-    } catch (error: any) {
-      console.error('Sign in error:', error);
-      if (error.code === 'auth/invalid-credential') {
-        setError('Invalid email or password');
-      } else if (error.code === 'auth/network-request-failed') {
-        setError('Network error. Please check your connection');
-      } else {
-        setError(`Error: ${error.message || 'Failed to sign in'}`);
+      if (!auth) {
+        throw new Error('Auth not initialized');
       }
+      await signInWithEmailAndPassword(auth as any, email, password);
+    } catch (error: any) {
+      console.error('Login error:', error);
+      setError(error.message || 'Failed to log in');
     } finally {
       setLoading(false);
     }

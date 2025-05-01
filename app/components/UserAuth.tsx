@@ -17,7 +17,9 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    if (!auth) return;
+    
+    const unsubscribe = onAuthStateChanged(auth as any, (user) => {
       setUser(user);
       setLoading(false);
     });
@@ -51,10 +53,10 @@ export default function UserAuth() {
       }
 
       // Sign in anonymously
-      const userCredential = await signInAnonymously(auth);
+      const userCredential = await signInAnonymously(auth as any);
       
       // Create or update user profile
-      await setDoc(doc(db, 'userProfiles', userCredential.user.uid), {
+      await setDoc(doc(db as unknown as Parameters<typeof doc>[0], 'userProfiles', userCredential.user.uid), {
         name: name.trim(),
         phoneNumber: phoneNumber.trim(),
         createdAt: new Date().toISOString(),

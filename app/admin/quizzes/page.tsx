@@ -2,8 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import { db } from '../../lib/firebase/firebase-client';
-import firebase from 'firebase/compat/app';
-import 'firebase/compat/firestore';
+import { 
+  collection, 
+  query, 
+  orderBy, 
+  getDocs, 
+  doc, 
+  updateDoc, 
+  where, 
+  DocumentData, 
+  QueryDocumentSnapshot,
+  DocumentReference
+} from 'firebase/firestore';
 import Link from 'next/link';
 import AnswerSelectionModal from '../../components/AnswerSelectionModal';
 
@@ -24,6 +34,13 @@ interface Quiz {
   questions: Question[];
   correctAnswers?: Record<string, string>;
   completedAt?: string;
+  coverImage?: string;
+}
+
+interface Submission {
+  userId: string;
+  userName: string;
+  answers: Record<string, string>;
 }
 
 export default function Quizzes() {
@@ -44,15 +61,15 @@ export default function Quizzes() {
     const fetchQuizzes = async () => {
       try {
         console.log('Starting to fetch quizzes');
-        if (!db) {
-          throw new Error('Firebase db is not initialized');
+        if (typeof window === 'undefined') {
+          throw new Error('Cannot fetch quizzes on server side');
         }
 
-        const firestore = db!;
-        const quizzesQuery = firestore.collection('quizzes').orderBy('createdAt', 'desc');
+        const quizzesRef = collection(db!, 'quizzes');
+        const q = query(quizzesRef, orderBy('createdAt', 'desc'));
         
         console.log('Created query, fetching docs...');
-        const querySnapshot = await quizzesQuery.get();
+        const querySnapshot = await getDocs(q);
         const quizzesList = querySnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
@@ -77,7 +94,11 @@ export default function Quizzes() {
   const handleStatusChange = async (quizId: string, currentStatus: 'in-progress' | 'completed') => {
     try {
       setUpdating(quizId);
-      const quizRef = db!.collection('quizzes').doc(quizId);
+      if (typeof window === 'undefined') {
+        throw new Error('Cannot update quiz status on server side');
+      }
+
+      const quizRef = doc(db!, 'quizzes', quizId);
       const newStatus = currentStatus === 'in-progress' ? 'completed' : 'in-progress';
       
       console.log('Updating quiz status in Firebase:', {
@@ -86,7 +107,7 @@ export default function Quizzes() {
         newStatus
       });
       
-      await quizRef.update({
+      await updateDoc(quizRef, {
         status: newStatus
       });
       
@@ -117,12 +138,11 @@ export default function Quizzes() {
   };
 
   const handleAnswerSubmit = async (answers: Record<string, string>) => {
-    if (!selectedQuiz || !db) return;
+    if (!selectedQuiz || typeof window === 'undefined') return;
 
     try {
       setUpdating(selectedQuiz.id);
-      const firestore = db!;
-      const quizRef = firestore.collection('quizzes').doc(selectedQuiz.id);
+      const quizRef = doc(db!, 'quizzes', selectedQuiz.id);
       
       console.log('Submitting answers for quiz:', {
         quizId: selectedQuiz.id,
@@ -132,7 +152,7 @@ export default function Quizzes() {
       
       // First, update the quiz status and correct answers
       try {
-        await quizRef.update({
+        await updateDoc(quizRef, {
           status: 'completed',
           correctAnswers: answers,
           completedAt: new Date().toISOString()
@@ -144,12 +164,13 @@ export default function Quizzes() {
       }
       
       // Then, get all submissions for this quiz
-      const submissionsQuery = firestore.collection('submissions').where('quizId', '==', selectedQuiz.id);
-      const submissionsSnapshot = await submissionsQuery.get();
+      const submissionsRef = collection(db!, 'submissions');
+      const submissionsQuery = query(submissionsRef, where('quizId', '==', selectedQuiz.id));
+      const submissionsSnapshot = await getDocs(submissionsQuery);
       
       // Calculate scores for each submission
-      const scoreUpdates = submissionsSnapshot.docs.map(doc => {
-        const submission = doc.data();
+      const scoreUpdates = submissionsSnapshot.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => {
+        const submission = doc.data() as Submission;
         let score = 0;
         console.log('Calculating score for submission:', {
           submissionId: doc.id,
@@ -185,12 +206,12 @@ export default function Quizzes() {
       // Update all submissions with their scores
       try {
         await Promise.all(
-          scoreUpdates.map(async ({ docRef, score }) => {
+          scoreUpdates.map(async ({ docRef, score }: { docRef: DocumentReference, score: number }) => {
             console.log('Updating submission score:', {
               submissionId: docRef.id,
               score
             });
-            await docRef.update({ score });
+            await updateDoc(docRef, { score });
           })
         );
         console.log('Successfully updated all submission scores:', scoreUpdates);

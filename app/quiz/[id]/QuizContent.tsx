@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useTransition } from 'react';
 import { db } from '../../lib/firebase/firebase-client';
 import { doc, getDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
@@ -33,6 +33,7 @@ export default function QuizContent({ initialQuizData }: QuizContentProps) {
   const [loading, setLoading] = useState(!initialQuizData);
   const [isRegistered, setIsRegistered] = useState(false);
   const [timeLeft, setTimeLeft] = useState<string>('');
+  const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const params = useParams();
   const quizId = params.id as string;
@@ -43,7 +44,7 @@ export default function QuizContent({ initialQuizData }: QuizContentProps) {
       if (!user || !quiz) return;
 
       try {
-        const registrationRef = doc(db, 'quizRegistrations', `${quizId}_${user.uid}`);
+        const registrationRef = doc(db as unknown as Parameters<typeof doc>[0], 'quizRegistrations', `${quizId}_${user.uid}`);
         const registrationDoc = await getDoc(registrationRef);
         const isUserRegistered = registrationDoc.exists();
         setIsRegistered(isUserRegistered);
@@ -87,20 +88,30 @@ export default function QuizContent({ initialQuizData }: QuizContentProps) {
     return () => clearInterval(interval);
   }, [quiz?.deadline]);
 
-  const handleStartQuiz = () => {
-    if (quiz?.status === 'completed') {
+  const handleStartQuiz = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    if (quiz?.status === 'completed' || isPending) {
       return;
     }
-    if (isRegistered) {
-      router.push(`/quiz/${quizId}/take`);
-    } else {
-      router.push(`/quiz/${quizId}/register`);
-    }
-  };
+
+    const nextRoute = isRegistered ? `/quiz/${quizId}/take` : `/quiz/${quizId}/register`;
+    
+    // Start the transition
+    startTransition(() => {
+      // Prefetch and prepare the route
+      router.prefetch(nextRoute);
+      
+      // Use requestAnimationFrame to ensure we're in the next paint cycle
+      requestAnimationFrame(() => {
+        // Navigate after a frame has been painted
+        router.push(nextRoute);
+      });
+    });
+  }, [quiz?.status, isPending, isRegistered, quizId, router]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className={styles['quiz-container']}>
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
@@ -108,63 +119,48 @@ export default function QuizContent({ initialQuizData }: QuizContentProps) {
 
   if (!quiz) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Quiz Not Found</h1>
-          <p className="text-gray-600">The quiz you're looking for doesn't exist or has been removed.</p>
+      <div className={styles['quiz-container']}>
+        <div className="text-center text-white">
+          <h1 className="text-2xl font-bold mb-4">Quiz Not Found</h1>
+          <p>The quiz you're looking for doesn't exist or has been removed.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className={`${styles['quiz-container']} w-96 h-[821px] relative overflow-hidden rounded-xl shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border border-gray-200`}>
-        {/* Background Image */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#E6D5C9] to-[#A1C4DD]" />
+    <div className={styles['quiz-container']}>
+      <div 
+        className={`${styles['quiz-content']} ${isPending ? styles['fade-out'] : styles['fade-in']}`}
+      >
+        <div className={styles['quiz-title']}>
+          {quiz.title}
+        </div>
 
-        {/* Content Container */}
-        <div className="relative z-10">
-          {/* Cover Image */}
-          <div className={`${styles['quiz-cover']} p-3 pb-[18px]`}>
+        <div className={styles['quiz-header']}>
+          <div className={styles['quiz-cover']}>
             <img
               src={quiz.coverImage || "https://placehold.co/316x202"}
               alt={quiz.title}
-              className="w-full h-52 rounded-lg shadow-[0px_4px_4px_0px_rgba(0,0,0,0.30)] object-cover"
             />
           </div>
-
-          {/* Quiz Title */}
-          <div className="w-64 mx-auto text-center mt-6">
-            <h1 className={`${styles['quiz-title']} font-['PP Object Sans Bold'] text-black`}>
-              {quiz.title}
-            </h1>
-          </div>
-
-          {/* Deadline Section - Moved up */}
-          <div className="mt-12 text-center">
-            <h2 className="text-base font-['PP Object Sans'] text-black mb-4">Deadline</h2>
-            <div className="w-72 h-16 mx-auto bg-white/80 backdrop-blur-sm rounded-lg flex items-center justify-center">
-              <span className={`${styles['quiz-deadline']} text-2xl font-['PP Object Sans Bold'] text-black`}>
-                {timeLeft}
-              </span>
-            </div>
-          </div>
-
-          {/* Start Quiz Button - Additional spacing (mt-8 instead of mt-4) */}
-          <div className="mt-8 flex justify-center">
-            <button
-              onClick={handleStartQuiz}
-              className={buttonStyles['animated-button']}
-            >
-              <div className={buttonStyles['button-content']}>
-                <span className="text-white text-base font-['PP Object Sans']">
-                  {isRegistered ? 'Continue Quiz' : 'Start Quiz'}
-                </span>
-              </div>
-            </button>
-          </div>
         </div>
+
+        <div className={styles['quiz-deadline']}>
+          {timeLeft}
+        </div>
+
+        <button
+          onClick={handleStartQuiz}
+          className={buttonStyles['animated-button']}
+          disabled={quiz?.status === 'completed' || isPending}
+        >
+          <div className={buttonStyles['button-content']}>
+            <span>
+              {isRegistered ? 'Continue Quiz' : 'Start Quiz'}
+            </span>
+          </div>
+        </button>
       </div>
     </div>
   );

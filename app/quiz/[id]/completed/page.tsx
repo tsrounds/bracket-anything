@@ -20,7 +20,7 @@ async function QuizContent({ id }: { id: string }) {
   console.log('QuizContent received id:', id);
   console.log('QuizContent is async:', Object.getPrototypeOf(QuizContent).constructor.name);
   
-  const quizDoc = await getDoc(doc(db, 'quizzes', id));
+  const quizDoc = await getDoc(doc(db as unknown as Parameters<typeof doc>[0], 'quizzes', id));
   
   if (!quizDoc.exists()) {
     return (
