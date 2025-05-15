@@ -88,19 +88,16 @@
   box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.30);
 }
 
-.quiz-deadline {
-  /* Ensure consistent deadline display */
-  font-variant-numeric: tabular-nums;
+.quiz-animation {
   position: relative;
   z-index: 1;
-  font-family: 'PP Object Sans', system-ui, -apple-system, sans-serif;
-  color: #f97316; /* Orange-500 for expired notice */
-  text-align: center;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   margin: 0;
   padding: 0;
   border: none;
-  font-size: 1.5rem;
-  font-weight: 700;
 }
 
 /* Prevent any external styles from affecting quiz elements */

@@ -32,7 +32,6 @@ export default function QuizContent({ initialQuizData }: QuizContentProps) {
   const [quiz, setQuiz] = useState<Quiz | null>(initialQuizData);
   const [loading, setLoading] = useState(!initialQuizData);
   const [isRegistered, setIsRegistered] = useState(false);
-  const [timeLeft, setTimeLeft] = useState<string>('');
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const params = useParams();
@@ -60,33 +59,6 @@ export default function QuizContent({ initialQuizData }: QuizContentProps) {
 
     checkRegistration();
   }, [quizId, router, user, quiz]);
-
-  useEffect(() => {
-    if (!quiz?.deadline) return;
-
-    const updateCountdown = () => {
-      const now = new Date().getTime();
-      const deadlineTime = new Date(quiz.deadline).getTime();
-      const distance = deadlineTime - now;
-
-      if (distance < 0) {
-        setTimeLeft('EXPIRED');
-        return;
-      }
-
-      const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-
-      setTimeLeft(`${days}d ${hours}h ${minutes}m ${seconds}s`);
-    };
-
-    updateCountdown();
-    const interval = setInterval(updateCountdown, 1000);
-
-    return () => clearInterval(interval);
-  }, [quiz?.deadline]);
 
   const handleStartQuiz = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -146,8 +118,13 @@ export default function QuizContent({ initialQuizData }: QuizContentProps) {
           </div>
         </div>
 
-        <div className={styles['quiz-deadline']}>
-          {timeLeft}
+        <div className={styles['quiz-animation']}>
+          <img 
+            src="/animations/totalgif.gif"
+            alt="Quiz animation"
+            width={200}
+            height={200}
+          />
         </div>
 
         <button
