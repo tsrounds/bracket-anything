@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "create-test-quiz": "ts-node scripts/create-test-quiz.ts"
+    "create-test-quiz": "node scripts/create-test-quiz.js"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "^1.3.1",
@@ -20,6 +20,7 @@
     "next": "^14.2.26",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-error-boundary": "^6.0.0",
     "stream-browserify": "^3.0.0"
   },
   "devDependencies": {

@@ -3,11 +3,12 @@
 import { useState, useEffect, useReducer } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../components/UserAuth';
-import { db } from '../../../lib/firebase/firebase-client';
+import { db, auth } from '../../../lib/firebase/firebase-client';
 import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import AvatarSelector from '../../../components/AvatarSelector';
 import UserAuth from '../../../components/UserAuth';
 import RegistrationLayout from '../../../components/RegistrationLayout';
+import { signInAnonymously } from 'firebase/auth';
 
 interface FormData {
   name: string;
@@ -52,6 +53,7 @@ const initialState: RegistrationState = {
 };
 
 function registrationReducer(state: RegistrationState, action: RegistrationAction): RegistrationState {
+  console.log('[Reducer] Action:', action);
   switch (action.type) {
     case 'SET_FORM_DATA':
       return { ...state, formData: action.payload };
@@ -113,9 +115,12 @@ const PhoneStep = ({ value, onChange }: { value: string; onChange: (value: strin
     <input
       type="tel"
       value={value}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => {
+        console.log('[DEBUG] Phone input changed:', e.target.value);
+        onChange(e.target.value);
+      }}
       className="w-full text-3xl font-light border-none focus:ring-0 focus:outline-none bg-transparent"
-      placeholder="Type your answer here..."
+      placeholder="Type your phone number here..."
       autoFocus
     />
   </div>
@@ -137,20 +142,19 @@ const AvatarStep = ({ value, onChange }: { value: string; onChange: (value: stri
 const checkReturningUser = async (phoneNumber: string) => {
   try {
     if (!db) {
-      console.error('Database not initialized');
+      console.error('[checkReturningUser] Database not initialized');
       return false;
     }
-
-    // Check if user exists in userProfiles collection
+    console.log('[checkReturningUser] Checking for phoneNumber:', phoneNumber);
     const userProfilesQuery = query(
       collection(db, 'userProfiles'),
       where('phoneNumber', '==', phoneNumber)
     );
     const userProfilesSnapshot = await getDocs(userProfilesQuery);
-    
+    console.log('[checkReturningUser] Found:', !userProfilesSnapshot.empty);
     return !userProfilesSnapshot.empty;
   } catch (error) {
-    console.error('Error checking returning user:', error);
+    console.error('[checkReturningUser] Error:', error);
     return false;
   }
 };
@@ -159,6 +163,7 @@ export default function QuizRegistration({ params }: { params: { id: string } })
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [state, dispatch] = useReducer(registrationReducer, initialState);
+  const [checkingPhone, setCheckingPhone] = useState(false);
 
   const handleFieldChange = (field: string, value: string) => {
     dispatch({
@@ -171,156 +176,20 @@ export default function QuizRegistration({ params }: { params: { id: string } })
     router.replace(`/quiz/${params.id}/take`);
   };
 
-  useEffect(() => {
-    const checkUserStatus = async () => {
-      if (authLoading) {
-        console.log('⏳ Waiting for auth to load...');
-        return;
-      }
-      
-      if (!user) {
-        console.log('❌ No authenticated user found');
-        dispatch({ type: 'COMPLETE_INITIALIZATION' });
-        return;
-      }
-
-      if (!state.hasCheckedRegistration && db) {
-        try {
-          console.log('🔍 Checking user status for:', user.uid);
-          
-          const userProfileDoc = await getDoc(doc(db, 'userProfiles', user.uid));
-          let isReturning = false;
-          let profileData = null;
-          
-          if (userProfileDoc.exists()) {
-            profileData = userProfileDoc.data();
-            const phoneNumber = profileData?.phoneNumber;
-            
-            if (phoneNumber) {
-              isReturning = await checkReturningUser(phoneNumber);
-              if (isReturning) {
-                dispatch({
-                  type: 'SET_FORM_DATA',
-                  payload: {
-                    name: profileData?.name || '',
-                    phoneNumber: phoneNumber || '',
-                    avatar: profileData?.avatar || ''
-                  }
-                });
-              }
-            }
-          }
-
-          const registrationId = `${params.id}_${user.uid}`;
-          const quizRegistrationDoc = await getDoc(doc(db, 'quizRegistrations', registrationId));
-          const isRegistered = quizRegistrationDoc.exists();
-
-          dispatch({
-            type: 'SET_USER_STATUS',
-            payload: { isRegistered, isReturningUser: isReturning }
-          });
-          
-          if (isRegistered && quizRegistrationDoc.exists()) {
-            const registrationData = quizRegistrationDoc.data();
-            dispatch({
-              type: 'SET_FORM_DATA',
-              payload: {
-                name: registrationData.name || '',
-                phoneNumber: registrationData.phoneNumber || '',
-                avatar: registrationData.avatar || ''
-              }
-            });
-          }
-
-          dispatch({ type: 'COMPLETE_INITIALIZATION' });
-        } catch (error) {
-          console.error('❌ Error checking user status:', error);
-          dispatch({ type: 'COMPLETE_INITIALIZATION' });
-        }
-      }
-    };
-
-    checkUserStatus();
-  }, [user, authLoading, params.id, state.hasCheckedRegistration, db]);
-
-  const handleNext = async () => {
-    if (state.currentStep < 3) {
-      dispatch({ type: 'SET_STEP', payload: state.currentStep + 1 });
-    } else if (state.currentStep === 3) {
-      try {
-        await handleSubmit();
-      } catch (error) {
-        return;
-      }
-    } else if (state.currentStep === 4) {
-      handleFinalSubmit();
-    }
-  };
-
-  const handleSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    dispatch({ type: 'START_SUBMIT' });
-
-    try {
-      if (!user?.uid) {
-        throw new Error('Please sign in to continue');
-      }
-
-      if (!db) {
-        throw new Error('Database not initialized');
-      }
-
-      if (!state.formData.name.trim() || !state.formData.phoneNumber.trim()) {
-        throw new Error('Please fill in all required fields');
-      }
-
-      await setDoc(doc(db, 'userProfiles', user.uid), {
-        name: state.formData.name.trim(),
-        phoneNumber: state.formData.phoneNumber.trim(),
-        avatar: state.formData.avatar || null,
-      }, { merge: true });
-
-      await setDoc(doc(db, 'quizRegistrations', `${params.id}_${user.uid}`), {
-        userId: user.uid,
-        name: state.formData.name.trim(),
-        phoneNumber: state.formData.phoneNumber.trim(),
-        avatar: state.formData.avatar || null,
-        quizId: params.id,
-        createdAt: new Date().toISOString(),
-      });
-
-      sessionStorage.setItem('userId', user.uid);
-      sessionStorage.setItem('userName', state.formData.name.trim());
-      sessionStorage.setItem('quizId', params.id);
-
-      dispatch({ type: 'COMPLETE_SUBMIT' });
-    } catch (error) {
-      dispatch({
-        type: 'SET_ERROR',
-        payload: error instanceof Error ? error.message : 'Failed to register'
-      });
-      throw error;
-    }
-  };
-
-  const handleEdit = () => {
-    dispatch({ type: 'EDIT_MODE' });
-  };
-
   const renderStep = () => {
     switch (state.currentStep) {
       case 1:
         return (
-          <NameStep
-            value={state.formData.name}
-            onChange={(value) => handleFieldChange('name', value)}
+          <PhoneStep
+            value={state.formData.phoneNumber}
+            onChange={(value) => handleFieldChange('phoneNumber', value)}
           />
         );
       case 2:
         return (
-          <PhoneStep
-            value={state.formData.phoneNumber}
-            onChange={(value) => handleFieldChange('phoneNumber', value)}
+          <NameStep
+            value={state.formData.name}
+            onChange={(value) => handleFieldChange('name', value)}
           />
         );
       case 3:
@@ -357,12 +226,127 @@ export default function QuizRegistration({ params }: { params: { id: string } })
     }
   };
 
+  const handleNext = async () => {
+    if (state.currentStep === 1) {
+      if (!state.formData.phoneNumber.trim()) return;
+      setCheckingPhone(true);
+      try {
+        if (!user && auth) {
+          await signInAnonymously(auth);
+        }
+        if (!db) {
+          dispatch({ type: 'SET_ERROR', payload: 'Database not initialized' });
+          setCheckingPhone(false);
+          return;
+        }
+        const userProfilesQuery = query(
+          collection(db, 'userProfiles'),
+          where('phoneNumber', '==', state.formData.phoneNumber.trim())
+        );
+        const userProfilesSnapshot = await getDocs(userProfilesQuery);
+        if (!userProfilesSnapshot.empty) {
+          const profileData = userProfilesSnapshot.docs[0].data();
+          dispatch({
+            type: 'SET_FORM_DATA',
+            payload: {
+              name: profileData.name || '',
+              phoneNumber: profileData.phoneNumber || '',
+              avatar: profileData.avatar || ''
+            }
+          });
+          dispatch({
+            type: 'SET_STEP',
+            payload: 4
+          });
+        } else {
+          dispatch({ type: 'SET_STEP', payload: 2 });
+        }
+      } catch (error) {
+        dispatch({ type: 'SET_ERROR', payload: 'Failed to check phone number' });
+      } finally {
+        setCheckingPhone(false);
+      }
+      return;
+    }
+    if (state.currentStep === 2) {
+      if (!state.formData.name.trim()) return;
+      dispatch({ type: 'SET_STEP', payload: 3 });
+      return;
+    }
+    if (state.currentStep === 3) {
+      try {
+        await handleSubmit();
+      } catch (error) {
+        // error handled in handleSubmit
+      }
+      return;
+    }
+    if (state.currentStep === 4) {
+      handleFinalSubmit();
+      return;
+    }
+  };
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    dispatch({ type: 'START_SUBMIT' });
+    try {
+      if (!user?.uid) {
+        throw new Error('Please sign in to continue');
+      }
+      if (!db) {
+        throw new Error('Database not initialized');
+      }
+      if (!state.formData.name.trim() || !state.formData.phoneNumber.trim()) {
+        throw new Error('Please fill in all required fields');
+      }
+      console.log('[handleSubmit] Writing user profile:', state.formData);
+      await setDoc(doc(db, 'userProfiles', user.uid), {
+        name: state.formData.name.trim(),
+        phoneNumber: state.formData.phoneNumber.trim(),
+        avatar: state.formData.avatar || null,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      console.log('[handleSubmit] Writing quiz registration:', {
+        userId: user.uid,
+        name: state.formData.name.trim(),
+        phoneNumber: state.formData.phoneNumber.trim(),
+        avatar: state.formData.avatar || null,
+        quizId: params.id,
+        createdAt: new Date().toISOString(),
+      });
+      await setDoc(doc(db, 'quizRegistrations', `${params.id}_${user.uid}`), {
+        userId: user.uid,
+        name: state.formData.name.trim(),
+        phoneNumber: state.formData.phoneNumber.trim(),
+        avatar: state.formData.avatar || null,
+        quizId: params.id,
+        createdAt: new Date().toISOString(),
+      });
+      sessionStorage.setItem('userId', user.uid);
+      sessionStorage.setItem('userName', state.formData.name.trim());
+      sessionStorage.setItem('quizId', params.id);
+      dispatch({ type: 'COMPLETE_SUBMIT' });
+    } catch (error) {
+      console.error('[handleSubmit] Error:', error);
+      dispatch({
+        type: 'SET_ERROR',
+        payload: error instanceof Error ? error.message : 'Failed to register'
+      });
+      throw error;
+    }
+  };
+
+  const handleEdit = () => {
+    dispatch({ type: 'EDIT_MODE' });
+  };
+
   const canProceed = () => {
     switch (state.currentStep) {
       case 1:
-        return state.formData.name.trim().length > 0;
-      case 2:
         return state.formData.phoneNumber.trim().length > 0;
+      case 2:
+        return state.formData.name.trim().length > 0;
       case 3:
       case 4:
         return true;
@@ -371,16 +355,23 @@ export default function QuizRegistration({ params }: { params: { id: string } })
     }
   };
 
-  if (authLoading || state.isInitializing) {
+  useEffect(() => {
+    if (!authLoading && state.isInitializing) {
+      dispatch({ type: 'COMPLETE_INITIALIZATION' });
+    }
+  }, [authLoading, state.isInitializing]);
+
+  if (authLoading || state.isInitializing || checkingPhone) {
+    console.log('[DEBUG] Spinner state:', {
+      authLoading,
+      isInitializing: state.isInitializing,
+      checkingPhone
+    });
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
-  }
-
-  if (!user) {
-    return <UserAuth />;
   }
 
   return (
@@ -396,13 +387,13 @@ export default function QuizRegistration({ params }: { params: { id: string } })
 
         <button
           onClick={handleNext}
-          disabled={!canProceed() || state.isSubmitting}
+          disabled={!canProceed() || state.isSubmitting || checkingPhone}
           className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200 disabled:bg-blue-400"
         >
-          {state.isSubmitting 
-            ? 'Processing...' 
-            : state.currentStep === 4 
-              ? 'Start Quiz' 
+          {state.isSubmitting || checkingPhone
+            ? 'Processing...'
+            : state.currentStep === 4
+              ? 'Start Quiz'
               : 'Continue'
           }
         </button>

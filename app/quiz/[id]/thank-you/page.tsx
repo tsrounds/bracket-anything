@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { db } from '../../../lib/firebase/firebase-client';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../components/UserAuth';
+import { ErrorBoundary } from 'react-error-boundary';
 
 interface Question {
   id: string;
@@ -122,6 +123,16 @@ function ResultsModal({
 }
 
 export default function ThankYouPage({ params, searchParams }: { params: { id: string }, searchParams: { resubmit?: string } }) {
+  return (
+    <ErrorBoundary fallback={<div>Something went wrong. Please try again.</div>}>
+      <Suspense fallback={<div>Loading...</div>}>
+        <ThankYouContent params={params} searchParams={searchParams} />
+      </Suspense>
+    </ErrorBoundary>
+  );
+}
+
+function ThankYouContent({ params, searchParams }: { params: { id: string }, searchParams: { resubmit?: string } }) {
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [userSubmission, setUserSubmission] = useState<Submission | null>(null);

@@ -65,16 +65,30 @@ export default function Quizzes() {
           throw new Error('Cannot fetch quizzes on server side');
         }
 
-        const quizzesRef = collection(db!, 'quizzes');
+        if (!db) {
+          throw new Error('Firestore database not initialized');
+        }
+
+        const quizzesRef = collection(db, 'quizzes');
         const q = query(quizzesRef, orderBy('createdAt', 'desc'));
-        
         console.log('Created query, fetching docs...');
         const querySnapshot = await getDocs(q);
+        if (!querySnapshot || !querySnapshot.docs) {
+          console.error('Firestore query failed or returned no docs', { querySnapshot });
+          setQuizzes([]);
+          setError('No quizzes found or Firestore query failed.');
+          return;
+        }
         const quizzesList = querySnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         })) as Quiz[];
-
+        if (!Array.isArray(quizzesList)) {
+          console.error('quizzesList is not an array:', quizzesList);
+          setQuizzes([]);
+          setError('Failed to load quizzes.');
+          return;
+        }
         console.log('Successfully fetched quizzes:', {
           count: quizzesList.length,
           firstQuiz: quizzesList[0]?.id
@@ -83,6 +97,7 @@ export default function Quizzes() {
       } catch (error) {
         console.error('Error fetching quizzes:', error);
         setError(error instanceof Error ? error.message : 'Failed to fetch quizzes');
+        setQuizzes([]);
       } finally {
         setLoading(false);
       }
@@ -267,7 +282,7 @@ export default function Quizzes() {
   if (error) {
     return (
       <div className="max-w-4xl mx-auto p-6">
-        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+        <div className="bg-red-50 border border-red-200 rounded-md p-4 text-center">
           <h2 className="text-red-800 font-semibold">Error Loading Quizzes</h2>
           <p className="text-red-600">{error}</p>
         </div>
@@ -289,7 +304,7 @@ export default function Quizzes() {
 
       {loading ? (
         <div className="text-center">Loading quizzes...</div>
-      ) : quizzes.length === 0 ? (
+      ) : !quizzes || quizzes.length === 0 ? (
         <div className="text-center text-gray-500">
           No quizzes created yet. Click "Create New Quiz" to get started.
         </div>

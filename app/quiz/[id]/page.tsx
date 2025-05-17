@@ -2,6 +2,7 @@ import { Metadata, ResolvingMetadata } from 'next';
 import { adminDb } from '../../lib/firebase/firebase-admin';
 import dynamic from 'next/dynamic';
 import { cache } from 'react';
+import QuizRedirectClient from './redirect-client';
 
 // Import the client component
 const QuizContent = dynamic(() => import('./QuizContent'), {
@@ -120,8 +121,6 @@ export async function generateMetadata(
   }
 }
 
-export default async function QuizPage({ params }: Props) {
-  const quizData = await getQuizData(params.id);
-  
-  return <QuizContent initialQuizData={quizData} />;
+export default function QuizPage({ params }: Props) {
+  return <QuizRedirectClient id={params.id} />;
 } 

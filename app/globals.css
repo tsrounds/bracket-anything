@@ -66,3 +66,20 @@
   animation: ripple 0.6s linear;
   background-color: rgba(255, 255, 255, 0.1);
 }
+
+@font-face {
+  font-family: 'Integral CF Heavy';
+  src: url('/fonts/Fontspring-DEMO-integralcf-heavy.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+.integral-title {
+  font-family: 'Integral CF Heavy', system-ui, -apple-system, sans-serif;
+  font-size: 54px;
+  color: #fff;
+  text-align: center;
+  letter-spacing: 1px;
+  margin-bottom: 32px;
+}
