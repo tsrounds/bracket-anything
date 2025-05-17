@@ -97,12 +97,12 @@ function registrationReducer(state: RegistrationState, action: RegistrationActio
 
 const NameStep = ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
   <div className="space-y-4">
-    <div className="text-2xl text-gray-700">What's your name?</div>
+    <div className="text-2xl text-white/90 font-['PP_Object_Sans']">What's your name?</div>
     <input
       type="text"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full text-3xl font-light border-none focus:ring-0 focus:outline-none bg-transparent"
+      className="w-full text-3xl font-light border-none focus:ring-0 focus:outline-none bg-transparent text-white placeholder-white/50"
       placeholder="Type your answer here..."
       autoFocus
     />
@@ -111,7 +111,7 @@ const NameStep = ({ value, onChange }: { value: string; onChange: (value: string
 
 const PhoneStep = ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
   <div className="space-y-4">
-    <div className="text-2xl text-gray-700">What's your phone number?</div>
+    <div className="text-2xl text-white/90 font-['PP_Object_Sans']">What's your phone number?</div>
     <input
       type="tel"
       value={value}
@@ -119,7 +119,7 @@ const PhoneStep = ({ value, onChange }: { value: string; onChange: (value: strin
         console.log('[DEBUG] Phone input changed:', e.target.value);
         onChange(e.target.value);
       }}
-      className="w-full text-3xl font-light border-none focus:ring-0 focus:outline-none bg-transparent"
+      className="w-full text-3xl font-light border-none focus:ring-0 focus:outline-none bg-transparent text-white placeholder-white/50"
       placeholder="Type your phone number here..."
       autoFocus
     />
@@ -128,7 +128,7 @@ const PhoneStep = ({ value, onChange }: { value: string; onChange: (value: strin
 
 const AvatarStep = ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
   <div className="space-y-4">
-    <div className="text-2xl text-gray-700">Choose your avatar</div>
+    <div className="text-2xl text-white/90 font-['PP_Object_Sans']">Choose your avatar</div>
     <div className="flex justify-center">
       <AvatarSelector
         onAvatarSelect={onChange}
@@ -164,6 +164,8 @@ export default function QuizRegistration({ params }: { params: { id: string } })
   const router = useRouter();
   const [state, dispatch] = useReducer(registrationReducer, initialState);
   const [checkingPhone, setCheckingPhone] = useState(false);
+  const [fadeIn, setFadeIn] = useState(true);
+  const [prevStep, setPrevStep] = useState(1);
 
   const handleFieldChange = (field: string, value: string) => {
     dispatch({
@@ -202,20 +204,20 @@ export default function QuizRegistration({ params }: { params: { id: string } })
       case 4:
         return (
           <div className="space-y-4">
-            <div className="text-2xl text-gray-700">Review your information</div>
+            <div className="text-2xl text-white/80 font-['PP_Object_Sans']">Review your information</div>
             <div className="space-y-2">
-              <p className="text-xl">Name: {state.formData.name}</p>
-              <p className="text-xl">Phone: {state.formData.phoneNumber}</p>
+              <p className="text-xl text-white/90"><span className="font-semibold text-white/80">Name:</span> {state.formData.name}</p>
+              <p className="text-xl text-white/90"><span className="font-semibold text-white/80">Phone:</span> {state.formData.phoneNumber}</p>
               {state.formData.avatar && (
                 <div className="flex items-center space-x-2">
-                  <span className="text-xl">Avatar:</span>
-                  <img src={state.formData.avatar} alt="Selected avatar" className="w-12 h-12 rounded-full" />
+                  <span className="text-xl font-semibold text-white/80">Avatar:</span>
+                  <img src={state.formData.avatar} alt="Selected avatar" className="w-12 h-12 rounded-full bg-white/10" />
                 </div>
               )}
             </div>
             <button
               onClick={handleEdit}
-              className="text-blue-500 hover:text-blue-700"
+              className="text-cyan-300 hover:text-cyan-200 underline"
             >
               Edit Information
             </button>
@@ -361,6 +363,17 @@ export default function QuizRegistration({ params }: { params: { id: string } })
     }
   }, [authLoading, state.isInitializing]);
 
+  useEffect(() => {
+    if (state.currentStep !== prevStep) {
+      setFadeIn(false);
+      const timeout = setTimeout(() => {
+        setFadeIn(true);
+        setPrevStep(state.currentStep);
+      }, 50); // short delay to trigger fade out, then fade in
+      return () => clearTimeout(timeout);
+    }
+  }, [state.currentStep, prevStep]);
+
   if (authLoading || state.isInitializing || checkingPhone) {
     console.log('[DEBUG] Spinner state:', {
       authLoading,
@@ -368,8 +381,8 @@ export default function QuizRegistration({ params }: { params: { id: string } })
       checkingPhone
     });
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[#0e162a]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-400"></div>
       </div>
     );
   }
@@ -377,18 +390,23 @@ export default function QuizRegistration({ params }: { params: { id: string } })
   return (
     <RegistrationLayout currentStep={state.currentStep} totalSteps={4}>
       <div className="space-y-8">
-        {renderStep()}
-        
+        <div
+          style={{
+            opacity: fadeIn ? 1 : 0,
+            transition: 'opacity 1s cubic-bezier(0.4,0,0.2,1)',
+          }}
+        >
+          {renderStep()}
+        </div>
         {state.error && (
-          <div className="text-red-600 text-sm">
+          <div className="text-red-400 text-sm">
             {state.error}
           </div>
         )}
-
         <button
           onClick={handleNext}
           disabled={!canProceed() || state.isSubmitting || checkingPhone}
-          className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200 disabled:bg-blue-400"
+          className="w-full bg-cyan-400 text-[#0e162a] px-6 py-3 rounded-lg font-medium hover:bg-cyan-300 transition-colors duration-200 disabled:bg-cyan-400/50 disabled:text-[#0e162a]/50"
         >
           {state.isSubmitting || checkingPhone
             ? 'Processing...'
