@@ -41,6 +41,7 @@ export default function TakeQuiz({ params }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
   const [fadeOut, setFadeOut] = useState(false);
+  const [hasGoneBack, setHasGoneBack] = useState(false);
 
   useEffect(() => {
     const fetchQuizAndCheckSubmission = async () => {
@@ -95,11 +96,8 @@ export default function TakeQuiz({ params }: Props) {
 
       // Get user profile
       const userProfileRef = doc(db as unknown as Parameters<typeof doc>[0], 'userProfiles', user.uid);
-      const userProfileDoc = await getDoc(userProfileRef);
-      if (!userProfileDoc.exists()) {
-        throw new Error('User profile not found');
-      }
-      const userProfile = userProfileDoc.data();
+      let userProfileDoc = await getDoc(userProfileRef);
+      let userProfile = userProfileDoc.data() || { name: 'Anonymous', email: '', createdAt: new Date().toISOString() };
 
       // Create submission document with unique ID
       const submissionRef = doc(db as unknown as Parameters<typeof doc>[0], 'submissions', `${params.id}_${user.uid}`);
@@ -163,6 +161,7 @@ export default function TakeQuiz({ params }: Props) {
 
   const handlePrevious = () => {
     if (currentQuestionIndex > 0) {
+      setHasGoneBack(true);
       setFadeOut(true);
       setTimeout(() => {
         setCurrentQuestionIndex(prev => prev - 1);
@@ -309,29 +308,31 @@ export default function TakeQuiz({ params }: Props) {
               </button>
             ) : (
               /* Next Button (show when not on last question and we've gone back) */
-              <button
-                onClick={handleNext}
-                disabled={currentQuestionIndex === totalQuestions - 1}
-                className={`p-2 rounded-lg transition-all duration-300 ${
-                  Object.keys(answers).includes(currentQuestion.id)
-                    ? 'text-cyan-400 hover:bg-cyan-400/10'
-                    : 'opacity-0 pointer-events-none'
-                }`}
-              >
-                <svg
-                  className="w-8 h-8"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+              hasGoneBack && (
+                <button
+                  onClick={handleNext}
+                  disabled={currentQuestionIndex === totalQuestions - 1}
+                  className={`p-2 rounded-lg transition-all duration-300 ${
+                    Object.keys(answers).includes(currentQuestion.id)
+                      ? 'text-cyan-400 hover:bg-cyan-400/10'
+                      : 'opacity-0 pointer-events-none'
+                  }`}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </button>
+                  <svg
+                    className="w-8 h-8"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </button>
+              )
             )}
           </div>
         </div>

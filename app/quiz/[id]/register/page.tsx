@@ -25,6 +25,7 @@ interface RegistrationState {
   isReturningUser: boolean;
   error: string;
   isSubmitting: boolean;
+  isEditing: boolean;
 }
 
 type RegistrationAction =
@@ -35,7 +36,8 @@ type RegistrationAction =
   | { type: 'START_SUBMIT' }
   | { type: 'COMPLETE_SUBMIT' }
   | { type: 'SET_ERROR'; payload: string }
-  | { type: 'EDIT_MODE' };
+  | { type: 'EDIT_MODE' }
+  | { type: 'RESET_EDIT_STATE' };
 
 const initialState: RegistrationState = {
   formData: {
@@ -49,7 +51,8 @@ const initialState: RegistrationState = {
   isRegistered: false,
   isReturningUser: false,
   error: '',
-  isSubmitting: false
+  isSubmitting: false,
+  isEditing: false
 };
 
 function registrationReducer(state: RegistrationState, action: RegistrationAction): RegistrationState {
@@ -78,17 +81,30 @@ function registrationReducer(state: RegistrationState, action: RegistrationActio
       return {
         ...state,
         isSubmitting: false,
-        isRegistered: true,
+        isRegistered: !state.isEditing,
         currentStep: 4
       };
     case 'SET_ERROR':
       return { ...state, error: action.payload, isSubmitting: false };
     case 'EDIT_MODE':
       return {
+        ...initialState,
+        formData: {
+          name: state.formData.name,
+          phoneNumber: state.formData.phoneNumber,
+          avatar: state.formData.avatar
+        },
+        isEditing: true,
+        currentStep: 1
+      };
+    case 'RESET_EDIT_STATE':
+      return {
         ...state,
-        currentStep: 1,
         isRegistered: false,
-        isReturningUser: false
+        isReturningUser: false,
+        isSubmitting: false,
+        error: '',
+        isEditing: false
       };
     default:
       return state;
@@ -109,22 +125,56 @@ const NameStep = ({ value, onChange }: { value: string; onChange: (value: string
   </div>
 );
 
-const PhoneStep = ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
-  <div className="space-y-4">
-    <div className="text-2xl text-white/90 font-['PP_Object_Sans']">What's your phone number?</div>
-    <input
-      type="tel"
-      value={value}
-      onChange={(e) => {
-        console.log('[DEBUG] Phone input changed:', e.target.value);
-        onChange(e.target.value);
-      }}
-      className="w-full text-3xl font-light border-none focus:ring-0 focus:outline-none bg-transparent text-white placeholder-white/50"
-      placeholder="Type your phone number here..."
-      autoFocus
-    />
-  </div>
-);
+const PhoneStep = ({ value, onChange }: { value: string; onChange: (value: string) => void }) => {
+  const formatPhoneNumber = (value: string) => {
+    // Remove all non-digit characters
+    const digits = value.replace(/\D/g, '');
+    
+    // Format the number as we go
+    let formattedNumber = '';
+    if (digits.length > 0) {
+      formattedNumber = '(' + digits.substring(0, 3);
+      if (digits.length > 3) {
+        formattedNumber += ') ' + digits.substring(3, 6);
+        if (digits.length > 6) {
+          formattedNumber += '-' + digits.substring(6, 10);
+        }
+      }
+    }
+    return formattedNumber;
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target.value;
+    // Only allow digits to be entered
+    const digits = input.replace(/\D/g, '');
+    if (digits.length <= 10) { // Limit to 10 digits
+      const formatted = formatPhoneNumber(digits);
+      console.log('[DEBUG] Phone input changed:', formatted);
+      onChange(formatted);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="text-2xl text-white/90 font-['PP_Object_Sans']">What's your phone number?</div>
+      <div className="relative">
+        <input
+          type="tel"
+          value={value}
+          onChange={handlePhoneChange}
+          className="w-full text-3xl font-light border-2 border-white/20 rounded-lg px-4 py-3 focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 focus:outline-none bg-transparent text-white"
+          placeholder="(XXX) XXX-XXXX"
+          autoFocus
+          maxLength={14} // (XXX) XXX-XXXX format
+        />
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 text-sm">
+          {value.length === 0 ? '10 digits' : ''}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const AvatarStep = ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
   <div className="space-y-4">
@@ -231,6 +281,13 @@ export default function QuizRegistration({ params }: { params: { id: string } })
   const handleNext = async () => {
     if (state.currentStep === 1) {
       if (!state.formData.phoneNumber.trim()) return;
+      
+      // If we're in edit mode, just proceed to step 2
+      if (state.isEditing) {
+        dispatch({ type: 'SET_STEP', payload: 2 });
+        return;
+      }
+
       setCheckingPhone(true);
       try {
         if (!user && auth) {
@@ -241,6 +298,7 @@ export default function QuizRegistration({ params }: { params: { id: string } })
           setCheckingPhone(false);
           return;
         }
+
         const userProfilesQuery = query(
           collection(db, 'userProfiles'),
           where('phoneNumber', '==', state.formData.phoneNumber.trim())
@@ -302,29 +360,34 @@ export default function QuizRegistration({ params }: { params: { id: string } })
       if (!state.formData.name.trim() || !state.formData.phoneNumber.trim()) {
         throw new Error('Please fill in all required fields');
       }
-      console.log('[handleSubmit] Writing user profile:', state.formData);
-      await setDoc(doc(db, 'userProfiles', user.uid), {
-        name: state.formData.name.trim(),
-        phoneNumber: state.formData.phoneNumber.trim(),
-        avatar: state.formData.avatar || null,
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
-      console.log('[handleSubmit] Writing quiz registration:', {
-        userId: user.uid,
-        name: state.formData.name.trim(),
-        phoneNumber: state.formData.phoneNumber.trim(),
-        avatar: state.formData.avatar || null,
-        quizId: params.id,
-        createdAt: new Date().toISOString(),
-      });
-      await setDoc(doc(db, 'quizRegistrations', `${params.id}_${user.uid}`), {
-        userId: user.uid,
-        name: state.formData.name.trim(),
-        phoneNumber: state.formData.phoneNumber.trim(),
-        avatar: state.formData.avatar || null,
-        quizId: params.id,
-        createdAt: new Date().toISOString(),
-      });
+
+      // If we're in edit mode, don't update the database
+      if (!state.isEditing) {
+        console.log('[handleSubmit] Writing user profile:', state.formData);
+        await setDoc(doc(db, 'userProfiles', user.uid), {
+          name: state.formData.name.trim(),
+          phoneNumber: state.formData.phoneNumber.trim(),
+          avatar: state.formData.avatar || null,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+        console.log('[handleSubmit] Writing quiz registration:', {
+          userId: user.uid,
+          name: state.formData.name.trim(),
+          phoneNumber: state.formData.phoneNumber.trim(),
+          avatar: state.formData.avatar || null,
+          quizId: params.id,
+          createdAt: new Date().toISOString(),
+        });
+        await setDoc(doc(db, 'quizRegistrations', `${params.id}_${user.uid}`), {
+          userId: user.uid,
+          name: state.formData.name.trim(),
+          phoneNumber: state.formData.phoneNumber.trim(),
+          avatar: state.formData.avatar || null,
+          quizId: params.id,
+          createdAt: new Date().toISOString(),
+        });
+      }
+
       sessionStorage.setItem('userId', user.uid);
       sessionStorage.setItem('userName', state.formData.name.trim());
       sessionStorage.setItem('quizId', params.id);
@@ -340,7 +403,13 @@ export default function QuizRegistration({ params }: { params: { id: string } })
   };
 
   const handleEdit = () => {
-    dispatch({ type: 'EDIT_MODE' });
+    // First reset all state flags
+    dispatch({ type: 'RESET_EDIT_STATE' });
+    
+    // Use setTimeout to ensure state updates are processed in order
+    setTimeout(() => {
+      dispatch({ type: 'EDIT_MODE' });
+    }, 0);
   };
 
   const canProceed = () => {
