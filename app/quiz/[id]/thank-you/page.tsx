@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../components/UserAuth';
 import { ErrorBoundary } from 'react-error-boundary';
+import AnimatedButton from '../../../components/AnimatedButton';
 
 interface Question {
   id: string;
@@ -37,6 +38,43 @@ interface Submission {
   totalAnswered?: number;
 }
 
+const AVATAR_BLUE = '#67D3F6';
+
+function AvatarCircle({ avatar, name, colorIndex }: { avatar?: string; name: string; colorIndex: number }) {
+  const shadow = '0 4px 16px 0 rgba(0,0,0,0.28), 0 2px 8px 0 rgba(0,0,0,0.18)';
+  if (avatar) {
+    return (
+      <img
+        src={avatar}
+        alt={name}
+        className="w-12 h-12 rounded-full object-cover"
+        style={{
+          zIndex: 10 - colorIndex,
+          position: 'relative',
+          background: AVATAR_BLUE,
+          boxShadow: shadow,
+          border: 'none',
+        }}
+      />
+    );
+  }
+  return (
+    <div
+      className="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold"
+      style={{
+        background: AVATAR_BLUE,
+        color: '#222',
+        zIndex: 10 - colorIndex,
+        position: 'relative',
+        boxShadow: shadow,
+        border: 'none',
+      }}
+    >
+      {name[0]?.toUpperCase() || '?'}
+    </div>
+  );
+}
+
 function ResultsModal({ 
   isOpen, 
   onClose, 
@@ -62,7 +100,7 @@ function ResultsModal({
               Submitted on {new Date(submission.submittedAt).toLocaleString()}
             </p>
           </div>
-          <button
+          <AnimatedButton
             onClick={onClose}
             className="text-white/50 hover:text-white"
           >
@@ -70,7 +108,7 @@ function ResultsModal({
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
-          </button>
+          </AnimatedButton>
         </div>
 
         <div className="space-y-4">
@@ -114,12 +152,12 @@ function ResultsModal({
         </div>
 
         <div className="mt-6 flex justify-end">
-          <button
+          <AnimatedButton
             onClick={onClose}
             className="px-4 py-2 bg-white/10 text-white rounded-md hover:bg-white/20 font-['PP_Object_Sans']"
           >
             Close
-          </button>
+          </AnimatedButton>
         </div>
       </div>
     </div>
@@ -146,8 +184,10 @@ function ThankYouContent({ params, searchParams }: { params: { id: string }, sea
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
   const [uniqueAnswer, setUniqueAnswer] = useState<{questionId: string, answer: string, isMinority?: boolean} | null>(null);
   const [universalAnswer, setUniversalAnswer] = useState<{questionId: string, answer: string, isMajority?: boolean} | null>(null);
+  const [showGif, setShowGif] = useState(false);
   const router = useRouter();
   const { user } = useAuth();
+  const [avatarMap, setAvatarMap] = useState<Record<string, string | undefined>>({});
 
   useEffect(() => {
     // Start with fadeOut true and then set it to false after a short delay
@@ -219,6 +259,21 @@ function ThankYouContent({ params, searchParams }: { params: { id: string }, sea
           })));
 
           setSubmissions(sortedSubmissions);
+
+          // Fetch avatars for all unique userIds in submissions
+          const userIds = Array.from(new Set(sortedSubmissions.map(sub => sub.userId)));
+          const avatarMap: Record<string, string | undefined> = {};
+          if (db) {
+            await Promise.all(userIds.map(async (uid) => {
+              try {
+                const userProfileDoc = await getDoc(doc(db as any, 'userProfiles', uid));
+                avatarMap[uid] = userProfileDoc.exists() ? userProfileDoc.data().avatar : undefined;
+              } catch (e) {
+                avatarMap[uid] = undefined;
+              }
+            }));
+          }
+          setAvatarMap(avatarMap);
 
           // Find user's submission using userId
           if (user) {
@@ -314,6 +369,12 @@ function ThankYouContent({ params, searchParams }: { params: { id: string }, sea
     fetchQuizAndSubmissions();
   }, [params.id, user]);
 
+  useEffect(() => {
+    setShowGif(false);
+    const timer = setTimeout(() => setShowGif(true), 400);
+    return () => clearTimeout(timer);
+  }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -340,13 +401,22 @@ function ThankYouContent({ params, searchParams }: { params: { id: string }, sea
   return (
     <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center">
       <div className="max-w-[380px] w-full mx-auto px-4 py-12">
-        <div className="text-center mb-12">
-          <h1 className="text-3xl font-extrabold font-['PP_Object_Sans'] mb-4">
-            Thank You for Your Submission!
-          </h1>
-          <p className="text-white/50 font-['PP_Object_Sans']">
-            Your answers have been recorded. {quiz?.status === 'in-progress' ? 'Check back later to see how you did!' : 'Here\'s how you did!'}
-          </p>
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-extrabold font-['PP_Object_Sans'] mb-4">You're in!</h1>
+          <img
+            src="/animations/totalgif.gif"
+            alt="Predict This Animation"
+            width={260}
+            height={260}
+            style={{
+              margin: '0 auto',
+              opacity: showGif ? 1 : 0,
+              transition: 'opacity 1.5s cubic-bezier(0.4,0,0.2,1)',
+              maxWidth: '80vw',
+              maxHeight: 260,
+              display: 'block',
+            }}
+          />
         </div>
 
         {uniqueAnswer && (
@@ -355,7 +425,7 @@ function ThankYouContent({ params, searchParams }: { params: { id: string }, sea
               You're in the minority!
             </h2>
             <p className="text-white/70 font-['PP_Object_Sans']">
-              You're one of the few who selected "{uniqueAnswer.answer}" for Question #{uniqueAnswer.questionId}. Will the minority be right?
+              You're one of the few who selected "{uniqueAnswer.answer}" for Question #{uniqueAnswer.questionId}. Are you smarter than the rest?
             </p>
           </div>
         )}
@@ -366,69 +436,59 @@ function ThankYouContent({ params, searchParams }: { params: { id: string }, sea
               You're in the majority!
             </h2>
             <p className="text-white/70 font-['PP_Object_Sans']">
-              You're in the majority who selected "{universalAnswer.answer}" for Question #{universalAnswer.questionId}. Will the majority be right?
+              You're in the majority who selected "{universalAnswer.answer}" for Question #{universalAnswer.questionId}. Are you smarter than the rest?
             </p>
           </div>
         )}
 
-        <div className="space-y-8">
-          {quiz?.status === 'completed' ? (
-            <div className="bg-slate-800/50 rounded-lg p-6">
-              <h2 className="text-xl font-semibold font-['PP_Object_Sans'] mb-6">
-                Leaderboard
-              </h2>
-              <div className="space-y-4">
-                {submissions.map((submission, index) => (
-                  <div
-                    key={submission.id}
-                    className={`flex items-center justify-between p-4 rounded-lg ${
-                      submission.id === userSubmission?.id
-                        ? 'bg-[#acc676]/10 border border-[#acc676]/20'
-                        : 'bg-slate-700/30'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-4">
-                      <span className="text-white/50 font-['PP_Object_Sans']">#{index + 1}</span>
-                      <span className="font-['PP_Object_Sans']">{submission.userName}</span>
-                    </div>
-                    <div className="text-white/70 font-['PP_Object_Sans']">
-                      {submission.score !== undefined ? `${submission.score} points` : 'Pending'}
-                    </div>
+        {quiz?.status === 'in-progress' && (
+          <div className="bg-slate-800/50 rounded-lg p-6 mb-8">
+            <h2 className="text-xl font-semibold font-['PP_Object_Sans'] mb-2">
+              {(() => {
+                const otherSubmissions = submissions.filter(sub => sub.id !== userSubmission?.id);
+                if (otherSubmissions.length === 0) {
+                  return "You're the first to submit predictions!";
+                }
+                const randomSubmission = otherSubmissions[Math.floor(Math.random() * otherSubmissions.length)];
+                const [firstName, ...lastNameParts] = randomSubmission.userName.split(' ');
+                const lastNameInitial = lastNameParts[lastNameParts.length - 1]?.[0] || '';
+                const formattedName = `${firstName} ${lastNameInitial}.`;
+                return `${formattedName} and ${otherSubmissions.length - 1} have submitted.`;
+              })()}
+            </h2>
+            <div className="flex items-center justify-center mt-4" style={{ gap: '-16px' }}>
+              {(() => {
+                const otherSubmissions = submissions.filter(sub => sub.id !== userSubmission?.id);
+                const shown = otherSubmissions.slice(0, 3);
+                return (
+                  <div className="flex -space-x-4">
+                    {shown.map((sub, i) => (
+                      <div key={sub.id} style={{ zIndex: 10 - i }}>
+                        <AvatarCircle avatar={avatarMap[sub.userId]} name={sub.userName} colorIndex={i} />
+                      </div>
+                    ))}
+                    {otherSubmissions.length > 3 && (
+                      <div
+                        className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold border-2 border-slate-900 bg-slate-700 text-white"
+                        style={{ zIndex: 6 }}
+                      >
+                        +{otherSubmissions.length - 3}
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
+                );
+              })()}
             </div>
-          ) : (
-            <div className="bg-slate-800/50 rounded-lg p-6">
-              <h2 className="text-xl font-semibold font-['PP_Object_Sans'] mb-6">
-                Other Predictions
-              </h2>
-              <p className="text-white/70 font-['PP_Object_Sans']">
-                {(() => {
-                  const otherSubmissions = submissions.filter(sub => sub.id !== userSubmission?.id);
-                  if (otherSubmissions.length === 0) {
-                    return "You're the first to submit predictions!";
-                  }
-                  
-                  const randomSubmission = otherSubmissions[Math.floor(Math.random() * otherSubmissions.length)];
-                  const [firstName, ...lastNameParts] = randomSubmission.userName.split(' ');
-                  const lastNameInitial = lastNameParts[lastNameParts.length - 1]?.[0] || '';
-                  const formattedName = `${firstName} ${lastNameInitial}.`;
-                  
-                  return `${formattedName} and ${otherSubmissions.length - 1} more have sent in their predictions.`;
-                })()}
-              </p>
-            </div>
-          )}
-
-          <div className="flex justify-center">
-            <button
-              onClick={() => setShowSubmissionModal(true)}
-              className="min-w-[140px] max-w-full px-6 py-3 text-center whitespace-nowrap bg-[#acc676] text-white rounded-lg hover:bg-[#acc676]/90 transition-colors font-['PP_Object_Sans']"
-            >
-              View Your Submission
-            </button>
           </div>
+        )}
+
+        <div className="flex justify-center">
+          <AnimatedButton
+            onClick={() => setShowSubmissionModal(true)}
+            className="min-w-[140px] max-w-full px-6 py-3 text-center whitespace-nowrap bg-[#acc676] text-white rounded-lg hover:bg-[#acc676]/90 transition-colors font-['PP_Object_Sans']"
+          >
+            View Your Submission
+          </AnimatedButton>
         </div>
       </div>
 

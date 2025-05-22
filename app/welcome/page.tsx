@@ -96,10 +96,47 @@ function WelcomeContent() {
           left: "50%",
           transform: "translate(-50%, 250%)",
           zIndex: 2,
+          background: "#F58143",
+          border: "none",
+          padding: 0,
+          cursor: "pointer",
+          outlineOffset: "4px",
+          borderRadius: "12px",
         }}
-        className="w-[150px] h-12 relative rounded-lg bg-[#F58143] text-white hover:opacity-90 disabled:opacity-50 transition-all duration-300 font-['PP_Object_Sans'] flex items-center justify-center"
+        className="w-[150px] h-12 relative font-['PP_Object_Sans'] flex items-center justify-center group"
       >
-        Start
+        <span
+          style={{
+            width: "100%",
+            height: "100%",
+            borderRadius: "12px",
+            background: "#F58143",
+            color: "white",
+            transform: "translateY(-4px)",
+            transition: "transform 0.1s ease, background 0.2s cubic-bezier(0.4,0,0.2,1)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            userSelect: "none",
+          }}
+          onMouseDown={(e) => {
+            e.currentTarget.style.transform = "translateY(-1px)";
+          }}
+          onMouseUp={(e) => {
+            e.currentTarget.style.transform = "translateY(-4px)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = "translateY(-4px)";
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.background = "#ffa366"; // lighter orange
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.background = "#F58143";
+          }}
+        >
+          Start
+        </span>
       </button>
     </div>
   );

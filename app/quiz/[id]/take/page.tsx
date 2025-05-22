@@ -8,6 +8,7 @@ import { doc, getDoc, setDoc, collection } from 'firebase/firestore';
 import { useAuth } from '../../../components/UserAuth';
 import UserAuth from '../../../components/UserAuth';
 import styles from './quiz.module.css';
+import AnimatedButton from '../../../components/AnimatedButton';
 
 interface Question {
   id: string;
@@ -233,7 +234,7 @@ export default function TakeQuiz({ params }: Props) {
               const isSelected = answers[currentQuestion.id] === option;
               
               return (
-                <button
+                <AnimatedButton
                   key={option}
                   onClick={() => handleAnswerSelect(currentQuestion.id, option)}
                   className={`w-full h-12 relative rounded-lg transition-all duration-300 group
@@ -265,7 +266,7 @@ export default function TakeQuiz({ params }: Props) {
                       )}
                     </div>
                   </div>
-                </button>
+                </AnimatedButton>
               );
             })}
           </div>
@@ -273,7 +274,7 @@ export default function TakeQuiz({ params }: Props) {
           {/* Navigation Buttons */}
           <div className="mt-8 flex items-center justify-between">
             {/* Previous Button */}
-            <button
+            <AnimatedButton
               onClick={handlePrevious}
               disabled={currentQuestionIndex === 0}
               className={`p-2 rounded-lg transition-all duration-300 ${
@@ -295,21 +296,21 @@ export default function TakeQuiz({ params }: Props) {
                   d="M15 19l-7-7 7-7"
                 />
               </svg>
-            </button>
+            </AnimatedButton>
 
             {/* Submit Button (only show on last question) */}
             {currentQuestionIndex === totalQuestions - 1 ? (
-              <button
+              <AnimatedButton
                 onClick={handleSubmit}
                 disabled={submitting}
                 className="w-48 h-12 relative rounded-lg bg-[#F58143] text-white hover:opacity-90 disabled:opacity-50 transition-all duration-300 font-['PP_Object_Sans']"
               >
                 {submitting ? 'Submitting...' : 'Submit Quiz'}
-              </button>
+              </AnimatedButton>
             ) : (
               /* Next Button (show when not on last question and we've gone back) */
               hasGoneBack && (
-                <button
+                <AnimatedButton
                   onClick={handleNext}
                   disabled={currentQuestionIndex === totalQuestions - 1}
                   className={`p-2 rounded-lg transition-all duration-300 ${
@@ -331,7 +332,7 @@ export default function TakeQuiz({ params }: Props) {
                       d="M9 5l7 7-7 7"
                     />
                   </svg>
-                </button>
+                </AnimatedButton>
               )
             )}
           </div>

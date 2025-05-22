@@ -177,14 +177,12 @@ const PhoneStep = ({ value, onChange }: { value: string; onChange: (value: strin
 };
 
 const AvatarStep = ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
-  <div className="space-y-4">
-    <div className="text-2xl text-white/90 font-['PP_Object_Sans']">Choose your avatar</div>
-    <div className="flex justify-center">
-      <AvatarSelector
-        onAvatarSelect={onChange}
-        initialAvatar={value}
-      />
-    </div>
+  <div className="flex flex-col items-start gap-2">
+    <div className="text-2xl text-white/90 font-['PP_Object_Sans'] mb-2">Choose your avatar</div>
+    <AvatarSelector
+      onAvatarSelect={onChange}
+      initialAvatar={value}
+    />
   </div>
 );
 
@@ -268,6 +266,12 @@ export default function QuizRegistration({ params }: { params: { id: string } })
             <button
               onClick={handleEdit}
               className="text-cyan-300 hover:text-cyan-200 underline"
+              style={{
+                transition: "transform 0.1s ease"
+              }}
+              onMouseDown={e => { e.currentTarget.style.transform = "translateY(2px)"; }}
+              onMouseUp={e => { e.currentTarget.style.transform = "translateY(0)"; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; }}
             >
               Edit Information
             </button>
@@ -475,12 +479,18 @@ export default function QuizRegistration({ params }: { params: { id: string } })
         <button
           onClick={handleNext}
           disabled={!canProceed() || state.isSubmitting || checkingPhone}
-          className="w-full bg-cyan-400 text-[#0e162a] px-6 py-3 rounded-lg font-medium hover:bg-cyan-300 transition-colors duration-200 disabled:bg-cyan-400/50 disabled:text-[#0e162a]/50"
+          className="w-[150px] h-12 bg-cyan-400 text-[#0e162a] px-6 py-3 rounded-lg font-medium hover:bg-cyan-300 transition-colors duration-200 disabled:bg-cyan-400/50 disabled:text-[#0e162a]/50 mx-auto"
+          style={{
+            transition: "transform 0.1s ease"
+          }}
+          onMouseDown={e => { e.currentTarget.style.transform = "translateY(2px)"; }}
+          onMouseUp={e => { e.currentTarget.style.transform = "translateY(0)"; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; }}
         >
           {state.isSubmitting || checkingPhone
             ? 'Processing...'
             : state.currentStep === 4
-              ? 'Start Quiz'
+              ? 'Start'
               : 'Continue'
           }
         </button>

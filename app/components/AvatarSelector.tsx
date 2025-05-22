@@ -63,7 +63,7 @@ export default function AvatarSelector({ onAvatarSelect, initialAvatar }: Avatar
   };
 
   return (
-    <div className="flex flex-col items-center space-y-4">
+    <div className="flex flex-row items-center justify-center gap-6">
       <div className="relative w-32 h-32 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center">
         <AnimatePresence mode="wait">
           {currentAvatar && (
@@ -89,22 +89,29 @@ export default function AvatarSelector({ onAvatarSelect, initialAvatar }: Avatar
         </AnimatePresence>
       </div>
       
-      <div className="flex justify-center">
-        <button
-          onClick={handleAvatarSelection}
-          disabled={isSelecting}
-          className={`px-6 py-2 rounded-lg font-medium transition-colors
-            ${isSelecting 
-              ? 'bg-gray-300 cursor-not-allowed' 
-              : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
-        >
-          {isSelecting 
-            ? 'Selecting...' 
-            : currentAvatar 
-              ? 'Regenerate Avatar' 
-              : 'Select Avatar'}
-        </button>
-      </div>
+      <button
+        onClick={handleAvatarSelection}
+        disabled={isSelecting}
+        className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ml-4
+          ${isSelecting 
+            ? 'bg-gray-300 cursor-not-allowed' 
+            : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
+        style={{ transition: 'transform 0.1s ease', position: 'relative' }}
+        onMouseDown={e => { e.currentTarget.style.transform = 'translateY(2px)'; }}
+        onMouseUp={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
+        onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
+      >
+        {isSelecting ? (
+          <span style={{ display: 'inline-flex', alignItems: 'center', height: '1em' }}>
+            <style>{`
+              @keyframes bouncing-dot { 0% { transform: none; } 33% { transform: translateY(-0.3em); } 66% { transform: none; } }
+            `}</style>
+            <span style={{ display: 'inline-block', fontSize: '1.5em', animation: 'bouncing-dot 700ms infinite ease-out', animationDelay: '0ms' }}>. </span>
+            <span style={{ display: 'inline-block', fontSize: '1.5em', animation: 'bouncing-dot 700ms infinite ease-out', animationDelay: '125ms' }}>. </span>
+            <span style={{ display: 'inline-block', fontSize: '1.5em', animation: 'bouncing-dot 700ms infinite ease-out', animationDelay: '250ms' }}>. </span>
+          </span>
+        ) : 'Redo'}
+      </button>
     </div>
   );
 } 
