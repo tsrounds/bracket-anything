@@ -79,9 +79,11 @@ export default function TakeQuiz({ params }: Props) {
     fetchQuizAndCheckSubmission();
   }, [params.id, user, router]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
+  const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    if (submitting) return;
 
     if (!db) {
       console.error('Firestore instance not initialized');
