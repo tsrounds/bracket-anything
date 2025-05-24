@@ -91,27 +91,28 @@ function ResultsModal({
   const totalPoints = quiz.questions.reduce((sum, q) => sum + q.points, 0);
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-slate-800 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+      <div className="bg-[#232734] border border-[#35394a] rounded-2xl px-8 py-6 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl relative">
+        <div className="flex justify-between items-start mb-6">
           <div>
-            <h2 className="text-xl font-semibold text-white font-['PP_Object_Sans']">Results for {submission.userName}</h2>
-            <p className="text-sm text-white/50 mt-1 font-['PP_Object_Sans']">
+            <h2 className="text-2xl font-bold text-white font-['PP_Object_Sans']">Results for <span className="break-all">{submission.userName}</span></h2>
+            <p className="text-sm text-slate-400 mt-1 font-['PP_Object_Sans']">
               Submitted on {new Date(submission.submittedAt).toLocaleString()}
             </p>
           </div>
-          <AnimatedButton
+          <button
             onClick={onClose}
-            className="text-white/50 hover:text-white"
+            className="text-slate-400 hover:text-white rounded-full p-2 transition focus:outline-none focus:ring-2 focus:ring-slate-600"
+            aria-label="Close"
+            style={{ lineHeight: 0 }}
           >
-            <span className="sr-only">Close</span>
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
-          </AnimatedButton>
+          </button>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-5">
           {quiz.questions.map((question) => {
             const userAnswer = submission.answers[question.id];
             const correctAnswer = quiz.correctAnswers?.[question.id];
@@ -120,29 +121,33 @@ function ResultsModal({
             return (
               <div 
                 key={question.id} 
-                className={`p-4 rounded-lg border ${
-                  quiz.status === 'completed'
-                    ? (isCorrect ? 'border-[#acc676]/20 bg-[#acc676]/10' : 'border-red-400/20 bg-red-400/10')
-                    : 'border-slate-700 bg-slate-800'
-                }`}
+                className={`p-5 rounded-xl border flex flex-col gap-2 transition-colors
+                  ${quiz.status === 'completed'
+                    ? isCorrect
+                      ? 'bg-[#2e3a2e] border-green-700'
+                      : 'bg-[#2d2936] border-[#4b2d36]'
+                    : 'bg-[#232734] border-[#35394a]'}
+                `}
               >
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="text-white font-medium font-['PP_Object_Sans']">{question.text}</h3>
+                <div className="flex justify-between items-center mb-1">
+                  <h3 className="text-lg font-semibold text-white font-['PP_Object_Sans']">{question.text}</h3>
                   {quiz.status === 'completed' && (
-                    <span className={`px-2 py-1 rounded text-sm font-medium ${
-                      isCorrect ? 'bg-[#acc676]/20 text-[#acc676]' : 'bg-red-400/20 text-red-400'
-                    } font-['PP_Object_Sans']`}>
-                      {isCorrect ? `+${question.points}` : '0'} points
+                    <span className={`px-3 py-1 rounded text-sm font-semibold font-['PP_Object_Sans']
+                      ${isCorrect
+                        ? 'bg-green-700/20 text-green-400'
+                        : 'bg-[#4b2d36]/30 text-red-300'}
+                    `}>
+                      {isCorrect ? `+${question.points}` : '0'}
                     </span>
                   )}
                 </div>
                 <div className="space-y-1 text-sm">
-                  <p className="text-white/70 font-['PP_Object_Sans']">
-                    Answer: <span className="font-medium text-white">{userAnswer}</span>
+                  <p className="text-slate-300 font-['PP_Object_Sans']">
+                    <span className="text-slate-400">Answer:</span> <span className="font-medium text-white">{userAnswer}</span>
                   </p>
                   {quiz.status === 'completed' && (
-                    <p className="text-white/70 font-['PP_Object_Sans']">
-                      Correct answer: <span className="font-medium text-white">{correctAnswer}</span>
+                    <p className="text-slate-300 font-['PP_Object_Sans']">
+                      <span className="text-slate-400">Correct answer:</span> <span className="font-medium text-white">{correctAnswer}</span>
                     </p>
                   )}
                 </div>
@@ -151,17 +156,29 @@ function ResultsModal({
           })}
         </div>
 
-        <div className="mt-6 flex justify-end">
-          <AnimatedButton
+        <div className="mt-8 flex justify-end">
+          <button
             onClick={onClose}
-            className="px-4 py-2 bg-white/10 text-white rounded-md hover:bg-white/20 font-['PP_Object_Sans']"
+            className="px-5 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 font-['PP_Object_Sans'] text-base font-semibold focus:outline-none focus:ring-2 focus:ring-slate-500"
           >
             Close
-          </AnimatedButton>
+          </button>
         </div>
       </div>
     </div>
   );
+}
+
+function calculateScore(submission: Submission, quiz: Quiz): number {
+  if (typeof submission.score === 'number') return submission.score;
+  if (!quiz?.correctAnswers || !quiz?.questions) return 0;
+  let score = 0;
+  for (const q of quiz.questions) {
+    if (submission.answers?.[q.id] === quiz.correctAnswers[q.id]) {
+      score += q.points;
+    }
+  }
+  return score;
 }
 
 export default function ThankYouPage({ params, searchParams }: { params: { id: string }, searchParams: { resubmit?: string } }) {
@@ -402,21 +419,7 @@ function ThankYouContent({ params, searchParams }: { params: { id: string }, sea
     <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center">
       <div className="max-w-[380px] w-full mx-auto px-4 py-12">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-extrabold font-['PP_Object_Sans'] mb-4">You're in!</h1>
-          <img
-            src="/animations/totalgif.gif"
-            alt="Predict This Animation"
-            width={260}
-            height={260}
-            style={{
-              margin: '0 auto',
-              opacity: showGif ? 1 : 0,
-              transition: 'opacity 1.5s cubic-bezier(0.4,0,0.2,1)',
-              maxWidth: '80vw',
-              maxHeight: 260,
-              display: 'block',
-            }}
-          />
+          <h1 className="text-3xl font-extrabold font-['PP_Object_Sans'] mb-4">{quiz.title}</h1>
         </div>
 
         {uniqueAnswer && (
@@ -482,22 +485,78 @@ function ThankYouContent({ params, searchParams }: { params: { id: string }, sea
           </div>
         )}
 
-        <div className="flex justify-center">
-          <AnimatedButton
-            onClick={() => setShowSubmissionModal(true)}
-            className="min-w-[140px] max-w-full px-6 py-3 text-center whitespace-nowrap bg-[#acc676] text-white rounded-lg hover:bg-[#acc676]/90 transition-colors font-['PP_Object_Sans']"
-          >
-            View Your Submission
-          </AnimatedButton>
-        </div>
+        {/* LEADERBOARD for completed quizzes */}
+        {quiz?.status === 'completed' && (
+          <div className="bg-[#232734] border border-[#35394a] rounded-2xl p-6 mb-8 max-w-md mx-auto text-white shadow-2xl">
+            <div className="mb-4">
+              <h2 className="text-2xl font-bold font-['PP_Object_Sans'] text-white">Leaderboard</h2>
+              {userRank && (
+                <div className="mt-1 text-lg font-semibold text-green-400 font-['PP_Object_Sans']">
+                  You came in {userRank}{userRank === 1 ? 'st' : userRank === 2 ? 'nd' : userRank === 3 ? 'rd' : 'th'}!
+                </div>
+              )}
+            </div>
+            <div className="">
+              <div className="grid grid-cols-[32px_40px_1fr_56px_40px] gap-x-3 text-left text-xs font-semibold text-slate-400 px-2 pb-2 select-none">
+                <div></div>
+                <div></div>
+                <div>Name</div>
+                <div className="text-center">Pts</div>
+                <div></div>
+              </div>
+              <div>
+                {[...submissions]
+                  .map(sub => ({ ...sub, _score: calculateScore(sub, quiz) }))
+                  .sort((a, b) => b._score - a._score || new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime())
+                  .map((sub, idx) => {
+                    const isCurrentUser = userSubmission && sub.userId === userSubmission.userId;
+                    return (
+                      <div
+                        key={sub.id}
+                        className={`grid grid-cols-[32px_40px_1fr_56px_40px] gap-x-3 items-center py-2 px-2 border-b border-[#35394a] last:border-b-0 transition-colors
+                          ${isCurrentUser ? 'bg-green-900/40 rounded-lg' : ''}
+                          ${!isCurrentUser ? 'even:bg-[#262a38]' : ''}`}
+                        style={{ minWidth: 0 }}
+                      >
+                        <div className="text-center font-bold text-base" style={{ color: isCurrentUser ? '#a3e635' : '#67D3F6', width: 32 }}>{idx + 1}</div>
+                        <div className="flex justify-center items-center" style={{ width: 40, height: 40 }}>
+                          <span className="block w-10 h-10 rounded-full overflow-hidden bg-sky-300 flex items-center justify-center shadow" style={{ minWidth: 40, minHeight: 40 }}>
+                            <AvatarCircle avatar={avatarMap[sub.userId]} name={sub.userName} colorIndex={idx} />
+                          </span>
+                        </div>
+                        <div className={`truncate font-['PP_Object_Sans'] text-sm ${isCurrentUser ? 'font-bold text-green-200' : 'text-slate-100'}`} style={{ minWidth: 0 }}>{sub.userName}</div>
+                        <div className="text-center font-semibold font-['PP_Object_Sans'] text-slate-200" style={{ width: 56 }}>{sub._score}</div>
+                        <div className="flex justify-end items-center" style={{ width: 40 }}>
+                          <button
+                            className="group relative flex items-center justify-center w-8 h-8 rounded-full hover:bg-slate-700 transition"
+                            onClick={() => { setSelectedSubmission(sub); }}
+                            aria-label="View Details"
+                          >
+                            {/* Eye SVG icon */}
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-slate-300 group-hover:text-white">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12s3.75-7.5 9.75-7.5 9.75 7.5 9.75 7.5-3.75 7.5-9.75 7.5S2.25 12 2.25 12z" />
+                              <circle cx="12" cy="12" r="3" fill="currentColor" className="text-slate-400 group-hover:text-white" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      <ResultsModal
-        isOpen={showSubmissionModal}
-        onClose={() => setShowSubmissionModal(false)}
-        submission={userSubmission!}
-        quiz={quiz!}
-      />
+      {/* ResultsModal for selected submission (leaderboard view) */}
+      {selectedSubmission && quiz && (
+        <ResultsModal
+          isOpen={!!selectedSubmission}
+          onClose={() => setSelectedSubmission(null)}
+          submission={selectedSubmission}
+          quiz={quiz}
+        />
+      )}
     </div>
   );
 } 

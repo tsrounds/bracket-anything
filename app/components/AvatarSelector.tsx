@@ -110,7 +110,7 @@ export default function AvatarSelector({ onAvatarSelect, initialAvatar }: Avatar
             <span style={{ display: 'inline-block', fontSize: '1.5em', animation: 'bouncing-dot 700ms infinite ease-out', animationDelay: '125ms' }}>. </span>
             <span style={{ display: 'inline-block', fontSize: '1.5em', animation: 'bouncing-dot 700ms infinite ease-out', animationDelay: '250ms' }}>. </span>
           </span>
-        ) : 'Redo'}
+        ) : currentAvatar ? 'Redo' : 'Generate'}
       </button>
     </div>
   );
