@@ -2,21 +2,30 @@ import './globals.css';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Bracket Anything | Create and Share Quizzes',
-  description: 'Create, share, and participate in interactive quizzes. A modern platform for engaging with your audience through fun and interactive content.',
+  title: 'Predict This.',
+  description: 'a game of pick \'ems',
   metadataBase: new URL('https://teddyrounds.com'),
   openGraph: {
-    title: 'Bracket Anything | Create and Share Quizzes',
-    description: 'Create, share, and participate in interactive quizzes. A modern platform for engaging with your audience through fun and interactive content.',
+    title: 'Predict This.',
+    description: 'a game of pick \'ems',
     url: 'https://teddyrounds.com',
-    siteName: 'Bracket Anything',
+    siteName: 'Predict This.',
     locale: 'en_US',
     type: 'website',
+    images: [
+      {
+        url: 'https://teddyrounds.com/og.png',
+        width: 1200,
+        height: 630,
+        alt: 'Predict This.',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Bracket Anything | Create and Share Quizzes',
-    description: 'Create, share, and participate in interactive quizzes. A modern platform for engaging with your audience through fun and interactive content.',
+    title: 'Predict This.',
+    description: 'a game of pick \'ems',
+    images: ['https://teddyrounds.com/og.png'],
   },
 };
 
