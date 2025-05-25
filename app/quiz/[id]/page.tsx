@@ -92,14 +92,14 @@ export async function generateMetadata(
       openGraph: {
         title: quiz.title,
         description: `Take part in the quiz: ${quiz.title}`,
-        images: quiz.coverImage ? [quiz.coverImage] : undefined,
+        images: [quiz.coverImage || 'https://teddyrounds.com/og.png'],
         type: 'website',
       },
       twitter: {
         card: 'summary_large_image',
         title: quiz.title,
         description: `Take part in the quiz: ${quiz.title}`,
-        images: quiz.coverImage ? [quiz.coverImage] : undefined,
+        images: [quiz.coverImage || 'https://teddyrounds.com/og.png'],
       },
     };
     
