@@ -419,7 +419,17 @@ function ThankYouContent({ params, searchParams }: { params: { id: string }, sea
     <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center">
       <div className="max-w-[380px] w-full mx-auto px-4 py-12">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-extrabold font-['PP_Object_Sans'] mb-4">{quiz.title}</h1>
+          {quiz.status === 'in-progress' && (
+            <img
+              src="/animations/totalgif.gif"
+              alt="Celebration animation"
+              className="mx-auto mb-4 w-32 h-32 object-contain"
+              style={{ pointerEvents: 'none' }}
+            />
+          )}
+          <h1 className="text-3xl font-extrabold font-['PP_Object_Sans'] mb-4">
+            {quiz.status === 'in-progress' ? "You're In!" : quiz.title}
+          </h1>
         </div>
 
         {uniqueAnswer && (
@@ -452,11 +462,16 @@ function ThankYouContent({ params, searchParams }: { params: { id: string }, sea
                 if (otherSubmissions.length === 0) {
                   return "You're the first to submit predictions!";
                 }
+                if (otherSubmissions.length === 1) {
+                  // Only 2 people (user + 1 other)
+                  const randomSubmission = otherSubmissions[0];
+                  const [firstName] = randomSubmission.userName.split(' ');
+                  return `${firstName} and you are the first to submit`;
+                }
+                // More than 2 people
                 const randomSubmission = otherSubmissions[Math.floor(Math.random() * otherSubmissions.length)];
-                const [firstName, ...lastNameParts] = randomSubmission.userName.split(' ');
-                const lastNameInitial = lastNameParts[lastNameParts.length - 1]?.[0] || '';
-                const formattedName = `${firstName} ${lastNameInitial}.`;
-                return `${formattedName} and ${otherSubmissions.length - 1} have submitted.`;
+                const [firstName] = randomSubmission.userName.split(' ');
+                return `${firstName} and ${otherSubmissions.length - 1} others have submitted.`;
               })()}
             </h2>
             <div className="flex items-center justify-center mt-4" style={{ gap: '-16px' }}>
@@ -482,7 +497,38 @@ function ThankYouContent({ params, searchParams }: { params: { id: string }, sea
                 );
               })()}
             </div>
+            {/* View your submission button for in-progress quizzes */}
+            {userSubmission && (
+              <div className="flex justify-center mt-6">
+                <AnimatedButton
+                  className="w-[180px] h-12 font-['PP_Object_Sans'] text-white text-sm font-normal rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-300 bg-[#F58143] shadow-[0_2px_8px_0_rgba(245,129,67,0.18)]"
+                  onClick={() => setShowSubmissionModal(true)}
+                >
+                  View your submission
+                </AnimatedButton>
+              </div>
+            )}
           </div>
+        )}
+
+        {/* ResultsModal for selected submission (leaderboard view) */}
+        {selectedSubmission && quiz && (
+          <ResultsModal
+            isOpen={!!selectedSubmission}
+            onClose={() => setSelectedSubmission(null)}
+            submission={selectedSubmission}
+            quiz={quiz}
+          />
+        )}
+
+        {/* ResultsModal for user's own submission (in-progress view) */}
+        {quiz?.status === 'in-progress' && userSubmission && (
+          <ResultsModal
+            isOpen={showSubmissionModal}
+            onClose={() => setShowSubmissionModal(false)}
+            submission={userSubmission}
+            quiz={quiz}
+          />
         )}
 
         {/* LEADERBOARD for completed quizzes */}
@@ -547,16 +593,6 @@ function ThankYouContent({ params, searchParams }: { params: { id: string }, sea
           </div>
         )}
       </div>
-
-      {/* ResultsModal for selected submission (leaderboard view) */}
-      {selectedSubmission && quiz && (
-        <ResultsModal
-          isOpen={!!selectedSubmission}
-          onClose={() => setSelectedSubmission(null)}
-          submission={selectedSubmission}
-          quiz={quiz}
-        />
-      )}
     </div>
   );
 } 
