@@ -51,7 +51,7 @@ export default function AvatarSelector({ onAvatarSelect, initialAvatar }: Avatar
     const interval = setInterval(() => {
       currentIndex = (currentIndex + 1) % avatarPaths.length;
       setCurrentAvatar(avatarPaths[currentIndex]);
-    }, 50);
+    }, 100);
 
     setTimeout(() => {
       clearInterval(interval);
@@ -59,7 +59,7 @@ export default function AvatarSelector({ onAvatarSelect, initialAvatar }: Avatar
       setCurrentAvatar(avatarPaths[finalIndex]);
       setIsSelecting(false);
       onAvatarSelect(avatarPaths[finalIndex]);
-    }, 3000);
+    }, 1500);
   };
 
   return (

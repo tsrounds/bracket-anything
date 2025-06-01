@@ -413,7 +413,14 @@ function ThankYouContent({ params, searchParams }: { params: { id: string }, sea
 
   const totalPoints = quiz.questions.reduce((sum, q) => sum + q.points, 0);
   const userScore = userSubmission?.score;
-  const userRank = userSubmission ? submissions.findIndex(s => s.userId === userSubmission.userId) + 1 : null;
+
+  // Create a sorted leaderboard array (by score, then submission time)
+  const sortedLeaderboard = [...submissions]
+    .map(sub => ({ ...sub, _score: calculateScore(sub, quiz) }))
+    .sort((a, b) => b._score - a._score || new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime());
+
+  // Calculate userRank from the sorted leaderboard
+  const userRank = userSubmission ? sortedLeaderboard.findIndex(s => s.userId === userSubmission.userId) + 1 : null;
 
   return (
     <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center">
@@ -551,9 +558,7 @@ function ThankYouContent({ params, searchParams }: { params: { id: string }, sea
                 <div></div>
               </div>
               <div>
-                {[...submissions]
-                  .map(sub => ({ ...sub, _score: calculateScore(sub, quiz) }))
-                  .sort((a, b) => b._score - a._score || new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime())
+                {sortedLeaderboard
                   .map((sub, idx) => {
                     const isCurrentUser = userSubmission && sub.userId === userSubmission.userId;
                     return (
