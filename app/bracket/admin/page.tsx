@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import AuthCheck from '../components/AuthCheck';
+import AuthCheck from '../../components/AuthCheck';
 
 export default function AdminPage() {
   const [mounted, setMounted] = useState(false);
@@ -25,12 +25,12 @@ export default function AdminPage() {
             Admin Dashboard
           </h1>
           <div className="space-y-4">
-            <Link href="/admin/create-quiz">
+            <Link href="/bracket/admin/create-quiz">
               <button className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200">
                 Create Quiz
               </button>
             </Link>
-            <Link href="/admin/quizzes">
+            <Link href="/bracket/admin/quizzes">
               <button className="w-full bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors duration-200">
                 View Quizzes
               </button>

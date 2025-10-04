@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useState, Suspense } from 'react';
-import { db } from '../../../lib/firebase/firebase-client';
+import { db } from '../../../../lib/firebase/firebase-client';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../../../components/UserAuth';
+import { useAuth } from '../../../../components/UserAuth';
 import { ErrorBoundary } from 'react-error-boundary';
-import AnimatedButton from '../../../components/AnimatedButton';
+import AnimatedButton from '../../../../components/AnimatedButton';
 
 interface Question {
   id: string;

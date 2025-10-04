@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { db } from '../../../lib/firebase/firebase-client';
+import { db } from '../../../../lib/firebase/firebase-client';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { useParams } from 'next/navigation';
-import AuthCheck from '../../../components/AuthCheck';
+import AuthCheck from '../../../../components/AuthCheck';
 import Link from 'next/link';
 
 interface Question {

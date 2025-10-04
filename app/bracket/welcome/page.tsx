@@ -33,7 +33,7 @@ function WelcomeContent() {
   const handleStart = () => {
     // Redirect to quiz register flow with id
     if (quizId) {
-      router.replace(`/quiz/${quizId}/register`);
+      router.replace(`/bracket/quiz/${quizId}/register`);
     } else {
       // fallback: go to home or error
       router.replace("/");

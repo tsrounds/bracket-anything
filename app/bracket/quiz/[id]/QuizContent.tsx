@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState, useCallback, useTransition } from 'react';
-import { db } from '../../lib/firebase/firebase-client';
+import { db } from '../../../lib/firebase/firebase-client';
 import { doc, getDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
-import { useAuth } from '../../components/UserAuth';
+import { useAuth } from '../../../components/UserAuth';
 import styles from './quiz.module.css';
 import buttonStyles from './button.module.css';
 
@@ -50,7 +50,7 @@ export default function QuizContent({ initialQuizData }: QuizContentProps) {
         
         // If user is not registered, redirect directly to registration page
         if (!isUserRegistered) {
-          router.push(`/quiz/${quizId}/register`);
+          router.push(`/bracket/quiz/${quizId}/register`);
         }
       } catch (error) {
         console.error('Error checking registration:', error);
@@ -66,7 +66,7 @@ export default function QuizContent({ initialQuizData }: QuizContentProps) {
       return;
     }
 
-    const nextRoute = isRegistered ? `/quiz/${quizId}/take` : `/quiz/${quizId}/register`;
+    const nextRoute = isRegistered ? `/bracket/quiz/${quizId}/take` : `/bracket/quiz/${quizId}/register`;
     
     // Start the transition
     startTransition(() => {

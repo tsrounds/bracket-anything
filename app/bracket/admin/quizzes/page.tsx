@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { db } from '../../lib/firebase/firebase-client';
+import { db } from '../../../lib/firebase/firebase-client';
 import { 
   collection, 
   query, 
@@ -15,7 +15,7 @@ import {
   DocumentReference
 } from 'firebase/firestore';
 import Link from 'next/link';
-import AnswerSelectionModal from '../../components/AnswerSelectionModal';
+import AnswerSelectionModal from '../../../components/AnswerSelectionModal';
 
 interface Question {
   id: string;
@@ -259,13 +259,13 @@ export default function Quizzes() {
       // For completed quizzes, navigate to the thank you page which shows the leaderboard
       const quiz = quizzes.find(q => q.id === quizId);
       if (quiz?.status === 'completed') {
-        window.open(`/quiz/${quizId}/thank-you`, '_blank');
+        window.open(`/bracket/quiz/${quizId}/thank-you`, '_blank');
         return;
       }
 
       // For in-progress quizzes, keep the share functionality
       const baseUrl = window.location.origin;
-      const quizUrl = `${baseUrl}/quiz/${quizId}`;
+      const quizUrl = `${baseUrl}/bracket/quiz/${quizId}`;
       
       // Copy to clipboard
       await navigator.clipboard.writeText(quizUrl);
@@ -295,7 +295,7 @@ export default function Quizzes() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Quizzes</h1>
         <Link
-          href="/admin/create-quiz"
+          href="/bracket/admin/create-quiz"
           className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
         >
           Create New Quiz

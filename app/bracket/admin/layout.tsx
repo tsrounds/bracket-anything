@@ -4,12 +4,12 @@ import dynamic from 'next/dynamic';
 import { Suspense } from 'react';
 
 // Dynamically import AuthCheck with no SSR
-const AuthCheck = dynamic(() => import('../components/AuthCheck'), {
+const AuthCheck = dynamic(() => import('../../components/AuthCheck'), {
   ssr: false
 });
 
 // Dynamically import ErrorBoundary with no SSR
-const ErrorBoundary = dynamic(() => import('../components/ErrorBoundary'), {
+const ErrorBoundary = dynamic(() => import('../../components/ErrorBoundary'), {
   ssr: false
 });
 

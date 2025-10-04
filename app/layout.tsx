@@ -1,5 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import SiteNav from './components/SiteNav';
 
 export const metadata: Metadata = {
   title: 'Predict This.',
@@ -36,7 +37,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <SiteNav />
+        {children}
+      </body>
     </html>
   );
 }

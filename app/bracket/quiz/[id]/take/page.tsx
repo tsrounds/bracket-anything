@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { db } from '../../../lib/firebase/firebase-client';
+import { db } from '../../../../lib/firebase/firebase-client';
 import firebase from 'firebase/compat/app';
 import { doc, getDoc, setDoc, collection } from 'firebase/firestore';
-import { useAuth } from '../../../components/UserAuth';
-import UserAuth from '../../../components/UserAuth';
+import { useAuth } from '../../../../components/UserAuth';
+import UserAuth from '../../../../components/UserAuth';
 import styles from './quiz.module.css';
-import AnimatedButton from '../../../components/AnimatedButton';
+import AnimatedButton from '../../../../components/AnimatedButton';
 
 interface Question {
   id: string;
@@ -66,7 +66,7 @@ export default function TakeQuiz({ params }: Props) {
           
           if (submissionDoc.exists()) {
             // User has already submitted, redirect to thank you page
-            router.push(`/quiz/${params.id}/thank-you?resubmit=true`);
+            router.push(`/bracket/quiz/${params.id}/thank-you?resubmit=true`);
           }
         }
       } catch (error) {
@@ -117,7 +117,7 @@ export default function TakeQuiz({ params }: Props) {
       await setDoc(submissionRef, submissionData);
 
       // Redirect to thank you page
-      router.push(`/quiz/${params.id}/thank-you`);
+      router.push(`/bracket/quiz/${params.id}/thank-you`);
     } catch (error) {
       console.error('Submission error:', error);
       alert('Failed to submit quiz. Please try again.');

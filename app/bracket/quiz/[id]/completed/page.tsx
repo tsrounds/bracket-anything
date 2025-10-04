@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { db } from '../../../lib/firebase/firebase-client';
+import { db } from '../../../../lib/firebase/firebase-client';
 import { doc, getDoc } from 'firebase/firestore';
 import Link from 'next/link';
 

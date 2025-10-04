@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useReducer } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../../../components/UserAuth';
-import { db, auth } from '../../../lib/firebase/firebase-client';
+import { useAuth } from '../../../../components/UserAuth';
+import { db, auth } from '../../../../lib/firebase/firebase-client';
 import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import AvatarSelector from '../../../components/AvatarSelector';
-import UserAuth from '../../../components/UserAuth';
-import RegistrationLayout from '../../../components/RegistrationLayout';
+import AvatarSelector from '../../../../components/AvatarSelector';
+import UserAuth from '../../../../components/UserAuth';
+import RegistrationLayout from '../../../../components/RegistrationLayout';
 import { signInAnonymously } from 'firebase/auth';
 
 interface FormData {

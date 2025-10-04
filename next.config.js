@@ -68,6 +68,36 @@ const nextConfig = {
   compress: true,
   reactStrictMode: true,
   swcMinify: false, // Temporarily disable SWC minification
+  // Redirects for moved routes
+  async redirects() {
+    return [
+      {
+        source: '/quiz/:path*',
+        destination: '/bracket/quiz/:path*',
+        permanent: true,
+      },
+      {
+        source: '/admin/:path*',
+        destination: '/bracket/admin/:path*',
+        permanent: true,
+      },
+      {
+        source: '/login',
+        destination: '/bracket/login',
+        permanent: true,
+      },
+      {
+        source: '/welcome',
+        destination: '/bracket/welcome',
+        permanent: true,
+      },
+      {
+        source: '/brackets',
+        destination: '/bracket',
+        permanent: true,
+      },
+    ];
+  },
   // Domain configuration
   async headers() {
     return [

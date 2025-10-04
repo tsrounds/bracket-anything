@@ -1,5 +1,5 @@
 import { Metadata, ResolvingMetadata } from 'next';
-import { adminDb } from '../../lib/firebase/firebase-admin';
+import { adminDb } from '../../../lib/firebase/firebase-admin';
 import dynamic from 'next/dynamic';
 import { cache } from 'react';
 import QuizRedirectClient from './redirect-client';

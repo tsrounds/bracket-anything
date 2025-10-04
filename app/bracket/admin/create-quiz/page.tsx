@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { db } from '../../lib/firebase/firebase-client';
+import { db } from '../../../lib/firebase/firebase-client';
 import { collection, addDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
-import AuthCheck from '../../components/AuthCheck';
-import ErrorBoundary from '../../components/ErrorBoundary';
+import AuthCheck from '../../../components/AuthCheck';
+import ErrorBoundary from '../../../components/ErrorBoundary';
 
 interface Question {
   id: string;
@@ -184,7 +184,7 @@ function CreateQuizContent() {
       console.log('Quiz created successfully with ID:', docRef.id);
 
       console.log('Redirecting to quizzes list...');
-      router.push('/admin/quizzes');
+      router.push('/bracket/admin/quizzes');
     } catch (error) {
       console.error('Detailed error creating quiz:', error);
       if (error instanceof Error) {
