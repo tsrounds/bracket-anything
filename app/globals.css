@@ -3,8 +3,12 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  
   body {
-    @apply bg-gray-50;
+    @apply bg-white;
   }
 }
 
@@ -75,6 +79,22 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: 'Plush-Trial';
+  src: url('/fonts/Plush-Trial-Bold-BF654c40144cc74.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Plush-Trial';
+  src: url('/fonts/Plush-Trial-Black-BF654c4013ec70c.otf') format('opentype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 .integral-title {
   font-family: 'Integral CF Heavy', system-ui, -apple-system, sans-serif;
   font-size: 54px;
@@ -82,4 +102,22 @@
   text-align: center;
   letter-spacing: 1px;
   margin-bottom: 32px;
+}
+
+.teddy-title {
+  font-family: var(--font-changa-one), system-ui, -apple-system, sans-serif;
+  font-weight: 400;
+  font-size: clamp(4rem, 12vw, 12rem);
+  line-height: 0.8;
+  letter-spacing: -0.02em;
+  color: black;
+}
+
+@keyframes scroll {
+  0% {
+    transform: translateX(50%);
+  }
+  100% {
+    transform: translateX(-200%);
+  }
 }
