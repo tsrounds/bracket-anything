@@ -132,7 +132,7 @@ export default function Projects() {
             }}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => window.open('mailto:hello@teddyrounds.com', '_blank')}
+            onClick={() => window.open('mailto:teddyrounds@gmail.com', '_blank')}
           >
             <svg 
               className="w-5 h-5" 
