@@ -6,6 +6,7 @@ interface AnimatedButtonProps {
   className?: string;
   children: React.ReactNode;
   type?: 'button' | 'submit' | 'reset';
+  style?: React.CSSProperties;
 }
 
 export default function AnimatedButton({
@@ -13,7 +14,8 @@ export default function AnimatedButton({
   disabled = false,
   className = '',
   children,
-  type = 'button'
+  type = 'button',
+  style
 }: AnimatedButtonProps) {
   return (
     <button
@@ -22,7 +24,8 @@ export default function AnimatedButton({
       disabled={disabled}
       className={`relative ${className}`}
       style={{
-        transition: "transform 0.1s ease"
+        ...(style || {}),
+        transition: "transform 0.1s ease",
       }}
       onMouseDown={e => { e.currentTarget.style.transform = "translateY(2px)"; }}
       onMouseUp={e => { e.currentTarget.style.transform = "translateY(0)"; }}

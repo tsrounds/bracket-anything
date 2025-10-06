@@ -2,6 +2,7 @@
 
 import { motion, useMotionValue, useSpring } from 'framer-motion';
 import { useEffect, useRef, useCallback } from 'react';
+import SpiralArrow from './SpiralArrow';
 
 export default function Hero() {
   const eyeRef = useRef<HTMLDivElement>(null);
@@ -173,6 +174,15 @@ export default function Hero() {
           <div className="inline-block w-24 h-4 md:w-32 md:h-6 bg-black rounded-full"></div>
         </motion.div>
       </div>
+      {/* Bottom-center down arrow pointing to Red Rising */}
+      <SpiralArrow
+        targetId="red-rising"
+        width="clamp(60px, 8vw, 100px)"
+        strokeWidth={3}
+        offsetBottom={40}
+        replayOnReenter
+        className="text-red-600 dark:text-red-400"
+      />
     </section>
   );
 }

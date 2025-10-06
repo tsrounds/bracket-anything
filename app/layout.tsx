@@ -1,7 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono, Changa_One } from 'next/font/google';
-import SiteNav from './components/SiteNav';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -59,7 +58,6 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} ${changaOne.variable}`}>
       <body className="font-sans antialiased">
-        <SiteNav />
         {children}
       </body>
     </html>

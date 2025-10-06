@@ -1,9 +1,12 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import Image from 'next/image';
+import { useState } from 'react';
+import ReserveDeckModal from '../ReserveDeckModal';
+import FannedCards from '../red-rising/FannedCards';
 
 export default function RedRising() {
+  const [isReserveOpen, setIsReserveOpen] = useState(false);
   return (
     <section className="bg-red-rising-dark text-white relative" style={{ backgroundColor: '#001d3d' }}>
       {/* Main content */}
@@ -17,22 +20,13 @@ export default function RedRising() {
             transition={{ duration: 0.8, ease: "easeOut" }}
             viewport={{ once: true }}
           >
-            <div className="relative -mt-20 lg:-mt-32" style={{ transform: 'translateY(-30px) translateX(60px)' }}>
-              {/* Playing card image */}
-              <div className="w-full max-w-sm mx-auto lg:mx-0" style={{ transform: 'scale(0.9)' }}>
-                <div className="relative transform rotate-3" style={{ 
-                  filter: 'drop-shadow(0 20px 40px rgba(0, 0, 0, 0.3)) drop-shadow(0 8px 16px rgba(0, 0, 0, 0.2))'
-                }}>
-                  <Image
-                    src="/Front Face.png"
-                    alt="Red Rising Playing Card"
-                    width={400}
-                    height={600}
-                    className="w-full h-auto"
-                    priority
-                  />
-                </div>
-              </div>
+            <div className="relative -mt-20 lg:-mt-32" style={{ transform: 'translateY(-30px) translateX(80px)' }}>
+              <FannedCards
+                frontSrc="/Front Face.png"
+                backSrc="/Face Card.png"
+                delayMs={2000}
+                className="w-full"
+              />
             </div>
           </motion.div>
 
@@ -66,6 +60,7 @@ export default function RedRising() {
               }}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
+              onClick={() => setIsReserveOpen(true)}
             >
               RESERVE A DECK
             </motion.button>
@@ -112,6 +107,7 @@ export default function RedRising() {
           </div>
         </div>
       </motion.div>
+      <ReserveDeckModal isOpen={isReserveOpen} onClose={() => setIsReserveOpen(false)} />
     </section>
   );
 }
