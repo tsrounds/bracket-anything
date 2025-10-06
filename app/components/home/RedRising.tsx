@@ -22,8 +22,8 @@ export default function RedRising() {
           >
             <div className="relative -mt-20 lg:-mt-32" style={{ transform: 'translateY(-30px) translateX(80px)' }}>
               <FannedCards
-                frontSrc="/Front Face.png"
-                backSrc="/Face Card.png"
+                frontSrc="/images/Front%20Face.png"
+                backSrc="/images/Face%20Card.png"
                 delayMs={2000}
                 className="w-full"
               />

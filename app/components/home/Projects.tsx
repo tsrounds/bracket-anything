@@ -57,7 +57,7 @@ export default function Projects() {
                 }}
               >
                 <Image
-                  src="/images/joker 1.png"
+                  src="/images/joker%201.png"
                   alt="Anniversary Deck Card"
                   fill
                   className="object-cover group-hover:scale-105 transition-transform duration-500"
@@ -95,7 +95,7 @@ export default function Projects() {
                 }}
               >
                 <Image
-                  src="/images/joker 2.png"
+                  src="/images/joker%202.png"
                   alt="Cambio Card"
                   fill
                   className="object-cover group-hover:scale-105 transition-transform duration-500"
