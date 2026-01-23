@@ -16,7 +16,7 @@ interface Project {
 const projects: Project[] = [
   {
     name: 'Predict this',
-    description: 'Create fun quizzes and brackets to settle debates with friends. What\'s the best pizza topping? Who\'s the best Marvel character? You decide.',
+    description: 'Easy to make, share and score prediction challenges. Oscars challenge? Got it. Champions league results? Yup. Which Real Housewives of Salt Lake leaves the show first? Sure.',
     image: '/animations/totalgif.gif',
     href: '/bracket',
     ctaText: 'Try it now',
@@ -42,23 +42,8 @@ export default function ProjectTiles() {
   };
 
   return (
-    <section className="py-20 bg-gradient-to-b from-[#001d3d] to-[#003566]">
+    <section id="project-tiles" className="py-20 bg-[#EEDDAB]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          viewport={{ once: true }}
-          className="text-center mb-12"
-        >
-          <h2 className="text-4xl md:text-5xl font-plush font-black text-white mb-4">
-            My Projects
-          </h2>
-          <p className="text-lg text-white/80 max-w-2xl mx-auto">
-            A collection of things I've built for fun
-          </p>
-        </motion.div>
-
         <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
           {projects.map((project, index) => (
             <motion.div
@@ -92,7 +77,7 @@ export default function ProjectTiles() {
 
                   {/* Content */}
                   <div className="p-6">
-                    <h3 className="text-2xl font-plush font-bold text-neutral-900 mb-3 group-hover:text-[#003566] transition-colors duration-300">
+                    <h3 className={`text-2xl ${project.name === 'Predict this' ? 'font-changa' : 'font-plush'} font-bold text-neutral-900 mb-3 group-hover:text-[#003566] transition-colors duration-300`}>
                       {project.name}
                     </h3>
                     <p className="text-neutral-600 leading-relaxed">

@@ -174,9 +174,9 @@ export default function Hero() {
           <div className="inline-block w-24 h-4 md:w-32 md:h-6 bg-black rounded-full"></div>
         </motion.div>
       </div>
-      {/* Bottom-center down arrow pointing to Red Rising */}
+      {/* Bottom-center down arrow pointing to Project Tiles */}
       <SpiralArrow
-        targetId="red-rising"
+        targetId="project-tiles"
         width="clamp(60px, 8vw, 100px)"
         strokeWidth={3}
         offsetBottom={40}

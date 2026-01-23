@@ -10,8 +10,8 @@ export default function Home() {
   return (
     <main>
       <Hero />
-      <RedRising />
       <ProjectTiles />
+      <RedRising />
       <Projects />
       <Footer />
     </main>
