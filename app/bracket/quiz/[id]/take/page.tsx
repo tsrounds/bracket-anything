@@ -4,11 +4,13 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { db } from '../../../../lib/firebase/firebase-client';
 import firebase from 'firebase/compat/app';
-import { doc, getDoc, setDoc, collection } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, arrayUnion, Timestamp } from 'firebase/firestore';
 import { useAuth } from '../../../../components/UserAuth';
 import UserAuth from '../../../../components/UserAuth';
 import styles from './quiz.module.css';
 import AnimatedButton from '../../../../components/AnimatedButton';
+import QuickRegistrationModal, { QuickRegistrationData } from '../../../../components/QuickRegistrationModal';
+import { hasDeviceSubmittedQuiz, getDeviceFingerprint, hashFingerprint, recordDeviceFingerprint } from '../../../../lib/deviceFingerprint';
 
 interface Question {
   id: string;
@@ -43,6 +45,7 @@ export default function TakeQuiz({ params }: Props) {
   const router = useRouter();
   const [fadeOut, setFadeOut] = useState(false);
   const [hasGoneBack, setHasGoneBack] = useState(false);
+  const [showQuickReg, setShowQuickReg] = useState(false);
 
   useEffect(() => {
     const fetchQuizAndCheckSubmission = async () => {
@@ -59,14 +62,26 @@ export default function TakeQuiz({ params }: Props) {
           setQuiz({ id: quizDoc.id, ...quizDoc.data() } as Quiz);
         }
 
-        // Check for existing submission if user is logged in
+        // Check device fingerprint for duplicate submissions
+        if (typeof window !== 'undefined') {
+          const hasTaken = await hasDeviceSubmittedQuiz(params.id);
+          if (hasTaken) {
+            console.log('[TakeQuiz] Device has already submitted this quiz');
+            router.push(`/bracket/quiz/${params.id}/thank-you`);
+            return;
+          }
+        }
+
+        // Check for existing submission by user UID if user is logged in
         if (user) {
           const submissionRef = doc(db as unknown as Parameters<typeof doc>[0], 'submissions', `${params.id}_${user.uid}`);
           const submissionDoc = await getDoc(submissionRef);
-          
+
           if (submissionDoc.exists()) {
             // User has already submitted, redirect to thank you page
+            console.log('[TakeQuiz] User has already submitted this quiz');
             router.push(`/bracket/quiz/${params.id}/thank-you?resubmit=true`);
+            return;
           }
         }
       } catch (error) {
@@ -76,14 +91,18 @@ export default function TakeQuiz({ params }: Props) {
       }
     };
 
-    fetchQuizAndCheckSubmission();
-  }, [params.id, user, router]);
-
-  const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
-    if (e) {
-      e.preventDefault();
+    if (!authLoading) {
+      fetchQuizAndCheckSubmission();
     }
-    if (submitting) return;
+  }, [params.id, user, router, authLoading]);
+
+  const handleQuizComplete = () => {
+    // Show quick registration modal instead of immediate submit
+    setShowQuickReg(true);
+  };
+
+  const handleQuickRegSubmit = async (data: QuickRegistrationData) => {
+    setSubmitting(true);
 
     if (!db) {
       console.error('Firestore instance not initialized');
@@ -97,33 +116,78 @@ export default function TakeQuiz({ params }: Props) {
         throw new Error('User not authenticated');
       }
 
-      // Get user profile
-      const userProfileRef = doc(db as unknown as Parameters<typeof doc>[0], 'userProfiles', user.uid);
-      let userProfileDoc = await getDoc(userProfileRef);
-      let userProfile = userProfileDoc.data() || { name: 'Anonymous', email: '', createdAt: new Date().toISOString() };
+      // Get device fingerprint and hash it
+      const fingerprint = await getDeviceFingerprint();
+      const fingerprintHash = await hashFingerprint(fingerprint);
 
-      // Create submission document with unique ID
+      // Determine account type based on phone number
+      const accountType: 'anonymous' | 'permanent' = data.phoneNumber ? 'permanent' : 'anonymous';
+
+      // Create/update user profile
+      const userProfileRef = doc(db as unknown as Parameters<typeof doc>[0], 'userProfiles', user.uid);
+      const userProfileData: any = {
+        name: data.name,
+        avatar: data.avatar || null,
+        phoneNumber: data.phoneNumber || '',
+        accountType,
+        deviceFingerprints: arrayUnion(fingerprintHash),
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Add createdAt only if it's a new profile
+      const existingProfile = await getDoc(userProfileRef);
+      if (!existingProfile.exists()) {
+        userProfileData.createdAt = Timestamp.now();
+      }
+
+      await setDoc(userProfileRef, userProfileData, { merge: true });
+
+      // Record device fingerprint with quiz submission
+      await recordDeviceFingerprint(user.uid, params.id);
+
+      // Create quiz registration
+      const quizRegRef = doc(db as unknown as Parameters<typeof doc>[0], 'quizRegistrations', `${params.id}_${user.uid}`);
+      await setDoc(quizRegRef, {
+        userId: user.uid,
+        name: data.name,
+        phoneNumber: data.phoneNumber || '',
+        avatar: data.avatar || null,
+        quizId: params.id,
+        createdAt: new Date().toISOString(),
+        deviceFingerprint: fingerprintHash,
+      });
+
+      // Create submission document
       const submissionRef = doc(db as unknown as Parameters<typeof doc>[0], 'submissions', `${params.id}_${user.uid}`);
       const submissionData = {
         userId: user.uid,
-        userName: userProfile.name,
+        userName: data.name,
         quizId: params.id,
         answers,
         submittedAt: new Date().toISOString(),
         totalQuestions: quiz?.questions.length || 0,
         totalAnswered: Object.keys(answers).length,
+        deviceFingerprint: fingerprintHash,
       };
 
       await setDoc(submissionRef, submissionData);
+
+      // Store in session storage for backward compatibility
+      sessionStorage.setItem('userId', user.uid);
+      sessionStorage.setItem('userName', data.name);
+      sessionStorage.setItem('quizId', params.id);
 
       // Redirect to thank you page
       router.push(`/bracket/quiz/${params.id}/thank-you`);
     } catch (error) {
       console.error('Submission error:', error);
       alert('Failed to submit quiz. Please try again.');
-    } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleQuickRegCancel = () => {
+    setShowQuickReg(false);
   };
 
   if (authLoading || loading) {
@@ -134,9 +198,7 @@ export default function TakeQuiz({ params }: Props) {
     );
   }
 
-  if (!user) {
-    return <UserAuth />;
-  }
+  // Remove the UserAuth check - users are auto-signed in anonymously now
 
   if (!quiz) {
     return (
@@ -303,7 +365,7 @@ export default function TakeQuiz({ params }: Props) {
             {/* Submit Button (only show on last question) */}
             {currentQuestionIndex === totalQuestions - 1 ? (
               <AnimatedButton
-                onClick={handleSubmit}
+                onClick={handleQuizComplete}
                 disabled={submitting}
                 className="w-48 h-12 relative rounded-lg bg-[#F58143] text-white hover:opacity-90 disabled:opacity-50 transition-all duration-300 font-['PP_Object_Sans']"
               >
@@ -340,6 +402,14 @@ export default function TakeQuiz({ params }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Quick Registration Modal */}
+      <QuickRegistrationModal
+        isOpen={showQuickReg}
+        onSubmit={handleQuickRegSubmit}
+        onCancel={handleQuickRegCancel}
+        loading={submitting}
+      />
     </div>
   );
 } 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { db } from '../../../../lib/firebase/firebase-client';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, setDoc, Timestamp } from 'firebase/firestore';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../../components/UserAuth';
@@ -203,8 +203,12 @@ function ThankYouContent({ params, searchParams }: { params: { id: string }, sea
   const [universalAnswer, setUniversalAnswer] = useState<{questionId: string, answer: string, isMajority?: boolean} | null>(null);
   const [showGif, setShowGif] = useState(false);
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isAnonymous } = useAuth();
   const [avatarMap, setAvatarMap] = useState<Record<string, string | undefined>>({});
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [upgrading, setUpgrading] = useState(false);
+  const [upgradeSuccess, setUpgradeSuccess] = useState(false);
 
   useEffect(() => {
     // Start with fadeOut true and then set it to false after a short delay
@@ -422,9 +426,99 @@ function ThankYouContent({ params, searchParams }: { params: { id: string }, sea
   // Calculate userRank from the sorted leaderboard
   const userRank = userSubmission ? sortedLeaderboard.findIndex(s => s.userId === userSubmission.userId) + 1 : null;
 
+  const formatPhoneNumber = (value: string) => {
+    const digits = value.replace(/\D/g, '');
+    let formattedNumber = '';
+    if (digits.length > 0) {
+      formattedNumber = '(' + digits.substring(0, 3);
+      if (digits.length > 3) {
+        formattedNumber += ') ' + digits.substring(3, 6);
+        if (digits.length > 6) {
+          formattedNumber += '-' + digits.substring(6, 10);
+        }
+      }
+    }
+    return formattedNumber;
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target.value;
+    const digits = input.replace(/\D/g, '');
+    if (digits.length <= 10) {
+      const formatted = formatPhoneNumber(digits);
+      setPhoneNumber(formatted);
+    }
+  };
+
+  const handleUpgradeSubmit = async () => {
+    if (!user || !phoneNumber || phoneNumber.replace(/\D/g, '').length !== 10) {
+      alert('Please enter a valid 10-digit phone number');
+      return;
+    }
+
+    setUpgrading(true);
+    try {
+      if (!db) {
+        throw new Error('Database not initialized');
+      }
+
+      const userProfileRef = doc(db as unknown as Parameters<typeof doc>[0], 'userProfiles', user.uid);
+      const existingProfile = await getDoc(userProfileRef);
+
+      await setDoc(userProfileRef, {
+        ...(existingProfile.exists() ? existingProfile.data() : {}),
+        phoneNumber: phoneNumber.replace(/\D/g, ''),
+        accountType: 'permanent',
+        upgradedAt: Timestamp.now(),
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+
+      setUpgradeSuccess(true);
+      setTimeout(() => {
+        setShowUpgradeModal(false);
+        setUpgradeSuccess(false);
+        setPhoneNumber('');
+      }, 2000);
+    } catch (error) {
+      console.error('Error upgrading account:', error);
+      alert('Failed to upgrade account. Please try again.');
+    } finally {
+      setUpgrading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center">
       <div className="max-w-[380px] w-full mx-auto px-4 py-12">
+        {/* Upgrade Banner for Anonymous Users */}
+        {isAnonymous && !upgradeSuccess && (
+          <div className="bg-cyan-400/10 border border-cyan-400/20 rounded-lg p-6 mb-8">
+            <h3 className="text-lg font-semibold mb-2 font-['PP_Object_Sans']">
+              Access from any device
+            </h3>
+            <p className="text-white/70 mb-4 text-sm font-['PP_Object_Sans']">
+              Add your phone number to view your results from anywhere
+            </p>
+            <button
+              onClick={() => setShowUpgradeModal(true)}
+              className="bg-cyan-400 text-slate-900 px-6 py-2 rounded-lg font-semibold hover:bg-cyan-300 transition-all font-['PP_Object_Sans']"
+            >
+              Add Phone Number
+            </button>
+          </div>
+        )}
+
+        {upgradeSuccess && (
+          <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-6 mb-8 animate-pulse">
+            <h3 className="text-lg font-semibold text-green-400 mb-2 font-['PP_Object_Sans']">
+              Account upgraded!
+            </h3>
+            <p className="text-white/70 text-sm font-['PP_Object_Sans']">
+              You can now access your results from any device.
+            </p>
+          </div>
+        )}
+
         <div className="text-center mb-8">
           {quiz.status === 'in-progress' && (
             <img
@@ -593,6 +687,57 @@ function ThankYouContent({ params, searchParams }: { params: { id: string }, sea
                       </div>
                     );
                   })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Upgrade Modal */}
+        {showUpgradeModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div className="bg-slate-900 rounded-2xl p-8 max-w-md w-full mx-4 border border-white/10 shadow-2xl">
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-white font-['PP_Object_Sans'] mb-2">
+                  Add Phone Number
+                </h2>
+                <p className="text-white/60 text-sm">
+                  Save your progress and access your results from any device
+                </p>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-white/80 text-sm mb-2 font-['PP_Object_Sans']">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  value={phoneNumber}
+                  onChange={handlePhoneChange}
+                  placeholder="(XXX) XXX-XXXX"
+                  maxLength={14}
+                  className="w-full px-4 py-3 bg-slate-800 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent transition-all font-['PP_Object_Sans']"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowUpgradeModal(false);
+                    setPhoneNumber('');
+                  }}
+                  disabled={upgrading}
+                  className="flex-1 px-6 py-3 bg-slate-800 border border-white/10 rounded-lg text-white/70 hover:text-white hover:bg-slate-700 transition-all font-['PP_Object_Sans'] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpgradeSubmit}
+                  disabled={upgrading || phoneNumber.replace(/\D/g, '').length !== 10}
+                  className="flex-1 px-6 py-3 bg-cyan-400 rounded-lg text-slate-900 font-semibold hover:bg-cyan-300 transition-all font-['PP_Object_Sans'] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {upgrading ? 'Saving...' : 'Save'}
+                </button>
               </div>
             </div>
           </div>

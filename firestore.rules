@@ -12,6 +12,27 @@ service cloud.firestore {
         get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.role == 'admin')
       );
     }
+
+    // Device fingerprints collection for duplicate prevention
+    match /deviceFingerprints/{fingerprintHash} {
+      // Allow authenticated users to read for duplicate checking
+      allow read: if request.auth != null;
+
+      // Allow creation if authenticated and adding own UID to linkedUsers
+      allow create: if request.auth != null &&
+        request.resource.data.linkedUsers is list &&
+        request.auth.uid in request.resource.data.linkedUsers;
+
+      // Allow updates if authenticated and only adding own UID
+      allow update: if request.auth != null &&
+        // New linkedUsers must contain all old linkedUsers (no removals)
+        request.resource.data.linkedUsers.hasAll(resource.data.linkedUsers) &&
+        // And user is adding their own UID
+        request.auth.uid in request.resource.data.linkedUsers;
+
+      // No deletes allowed to prevent tampering
+      allow delete: if false;
+    }
     
     // Allow reading and writing quizzes for authenticated users
     match /quizzes/{quizId} {
@@ -45,9 +66,46 @@ service cloud.firestore {
     // Allow creating and updating quiz submissions
     match /submissions/{submissionId} {
       allow read: if true;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && 
+      allow create: if request.auth != null &&
+        // Ensure submission has required deviceFingerprint field
+        request.resource.data.keys().hasAll(['deviceFingerprint', 'userId', 'quizId', 'answers']);
+      allow update, delete: if request.auth != null &&
         request.auth.uid == resource.data.userId;
+    }
+    
+    // Fitness app rules
+    match /fitness_users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+    
+    match /fitness_locations/{uid}/items/{locationId} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+    
+    match /fitness_exercises/{exerciseId} {
+      allow read: if true;  // Global read
+      allow write: if false; // Admin only
+    }
+    
+    match /fitness_plans/{uid}/{planId} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+    
+    match /fitness_sessions/{uid}/{sessionId} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+      
+      match /sets/{setId} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+    
+    match /fitness_prs/{uid}/{exerciseId} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+    
+    match /fitness_ai_usage/{uid}/events/{eventId} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false; // Server only
     }
   }
 } 

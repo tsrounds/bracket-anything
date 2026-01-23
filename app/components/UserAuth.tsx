@@ -15,19 +15,44 @@ interface UserProfile {
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAnonymous, setIsAnonymous] = useState(false);
 
   useEffect(() => {
     if (!auth) return;
-    
-    const unsubscribe = onAuthStateChanged(auth as any, (user) => {
-      setUser(user);
-      setLoading(false);
+
+    const unsubscribe = onAuthStateChanged(auth as any, async (user) => {
+      if (!user) {
+        // Auto sign in anonymously if no user
+        try {
+          const result = await signInAnonymously(auth as any);
+          setUser(result.user);
+          setIsAnonymous(true);
+
+          // Record device fingerprint - dynamic import to avoid SSR issues
+          if (typeof window !== 'undefined') {
+            try {
+              const { recordDeviceFingerprint } = await import('../lib/deviceFingerprint');
+              await recordDeviceFingerprint(result.user.uid);
+            } catch (fpError) {
+              console.error('[useAuth] Error recording fingerprint:', fpError);
+            }
+          }
+        } catch (error) {
+          console.error('[useAuth] Error signing in anonymously:', error);
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setUser(user);
+        setIsAnonymous(user.isAnonymous);
+        setLoading(false);
+      }
     });
 
     return unsubscribe;
   }, []);
 
-  return { user, loading };
+  return { user, loading, isAnonymous };
 }
 
 export default function UserAuth() {

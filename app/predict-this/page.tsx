@@ -38,29 +38,9 @@ function PredictThisContent() {
   }, [authLoading]);
 
   const handleEnter = async () => {
-    // If not authenticated, go to registration
-    if (!user) {
-      router.push('/predict-this/register');
-      return;
-    }
-
-    // Check if user has profile with phone number
-    try {
-      const profileRef = doc(db as any, 'userProfiles', user.uid);
-      const profileDoc = await getDoc(profileRef);
-
-      if (profileDoc.exists() && profileDoc.data()?.phoneNumber) {
-        // Registered user - go to menu
-        router.push('/predict-this/menu');
-      } else {
-        // Authenticated but no profile - register
-        router.push('/predict-this/register');
-      }
-    } catch (error) {
-      console.error('Error checking user profile:', error);
-      // On error, send to registration to be safe
-      router.push('/predict-this/register');
-    }
+    // With anonymous auth, all users are authenticated
+    // Just send them directly to the menu
+    router.push('/predict-this/menu');
   };
 
   return (
