@@ -22,6 +22,9 @@ interface QuizData {
   questions: Question[];
   coverImage?: string;
   deadline: string;
+  creatorId?: string;
+  creatorName?: string;
+  creatorAvatar?: string;
 }
 
 function CreateQuizContent() {
@@ -152,13 +155,34 @@ function CreateQuizContent() {
 
     try {
       console.log('Starting quiz creation...');
-      
+
       if (!title.trim()) {
         throw new Error('Title is required');
       }
 
       if (!db) {
         throw new Error('Firestore database not initialized');
+      }
+
+      // Fetch user profile for creator information
+      let creatorId, creatorName, creatorAvatar;
+      const { auth } = await import('../../../lib/firebase/firebase-client');
+      const currentUser = auth.currentUser;
+
+      if (currentUser) {
+        creatorId = currentUser.uid;
+        try {
+          const { doc, getDoc } = await import('firebase/firestore');
+          const profileRef = doc(db as any, 'userProfiles', currentUser.uid);
+          const profileDoc = await getDoc(profileRef);
+          if (profileDoc.exists()) {
+            const profileData = profileDoc.data();
+            creatorName = profileData.name;
+            creatorAvatar = profileData.avatar;
+          }
+        } catch (error) {
+          console.log('Could not fetch user profile, continuing without creator info');
+        }
       }
 
       const quizData: QuizData = {
@@ -170,10 +194,17 @@ function CreateQuizContent() {
         deadline: new Date(deadline).toISOString()
       };
 
+      // Add creator information if available
+      if (creatorId) {
+        (quizData as any).creatorId = creatorId;
+        if (creatorName) (quizData as any).creatorName = creatorName;
+        if (creatorAvatar) (quizData as any).creatorAvatar = creatorAvatar;
+      }
+
       console.log('Quiz data to be saved:', quizData);
 
       console.log('Attempting to save to Firestore...');
-      
+
       if (typeof window === 'undefined') {
         throw new Error('Cannot create quiz on server side');
       }

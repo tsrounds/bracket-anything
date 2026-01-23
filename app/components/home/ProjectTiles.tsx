@@ -18,7 +18,7 @@ const projects: Project[] = [
     name: 'Predict this',
     description: 'Easy to make, share and score prediction challenges. Oscars challenge? Got it. Champions league results? Yup. Which Real Housewives of Salt Lake leaves the show first? Sure.',
     image: '/animations/totalgif.gif',
-    href: '/bracket',
+    href: '/predict-this',
     ctaText: 'Try it now',
   },
   {
