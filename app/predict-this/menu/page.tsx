@@ -19,7 +19,9 @@ export default function PredictThisMenu() {
   useEffect(() => {
     const fetchUserProfile = async () => {
       if (!user) {
-        router.push('/predict-this/register');
+        // Should never happen with anonymous auth, but handle gracefully
+        setUserName('Guest');
+        setLoading(false);
         return;
       }
 
@@ -32,12 +34,14 @@ export default function PredictThisMenu() {
           setUserName(profileData.name || 'User');
           setUserAvatar(profileData.avatar);
         } else {
-          // No profile found, send to registration
-          router.push('/predict-this/register');
+          // No profile yet - anonymous user hasn't registered
+          // Show default name, they'll register when submitting a quiz
+          setUserName('Guest');
         }
       } catch (error) {
         console.error('Error fetching user profile:', error);
-        router.push('/predict-this/register');
+        // Don't block access on error - show default
+        setUserName('Guest');
       } finally {
         setLoading(false);
       }
