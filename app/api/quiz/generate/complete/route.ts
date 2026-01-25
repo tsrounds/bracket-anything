@@ -1,6 +1,7 @@
 export const runtime = 'edge';
 
 import Anthropic from '@anthropic-ai/sdk';
+import { ZodError } from 'zod';
 import { QuizGenerationRequest, QuizGenerationResponse } from '@/app/lib/predict-this/ai-schemas';
 
 const SYSTEM_PROMPT = `You are creating a prediction quiz about an event. Your job is to generate engaging prediction questions that users will answer BEFORE the event happens.
@@ -99,6 +100,15 @@ export async function POST(req: Request) {
     return Response.json(result);
   } catch (error) {
     console.error('Quiz Generation Error:', error);
+
+    // Handle Zod validation errors
+    if (error instanceof ZodError) {
+      const message = error.issues[0]?.message || 'Invalid input';
+      return Response.json(
+        { error: message },
+        { status: 400 }
+      );
+    }
 
     // Return error response
     if (error instanceof Error) {
