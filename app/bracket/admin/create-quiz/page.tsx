@@ -278,6 +278,13 @@ function CreateQuizContent() {
       const docRef = await addDoc(quizzesCollection, quizData);
       console.log('Quiz created successfully with ID:', docRef.id);
 
+      // Record device fingerprint to link this UID to the device
+      // This ensures quizzes appear in "My Quizzes" across sessions
+      if (creatorId) {
+        const { recordDeviceFingerprint } = await import('../../../lib/deviceFingerprint');
+        await recordDeviceFingerprint(creatorId);
+      }
+
       console.log('Redirecting to quizzes list...');
       router.push('/bracket/admin/quizzes');
     } catch (error) {

@@ -170,6 +170,36 @@ export async function recordDeviceFingerprint(
 }
 
 /**
+ * Get all user IDs linked to the current device's fingerprint
+ * Used to find quizzes created by the same device across different anonymous sessions
+ * @returns Array of linked user IDs, or empty array if no fingerprint exists
+ */
+export async function getLinkedUserIds(): Promise<string[]> {
+  if (!db) {
+    console.error('[getLinkedUserIds] Firestore not initialized');
+    return [];
+  }
+
+  try {
+    const fingerprint = await getDeviceFingerprint();
+    const fingerprintHash = await hashFingerprint(fingerprint);
+
+    const fingerprintRef = doc(db, 'deviceFingerprints', fingerprintHash);
+    const fingerprintDoc = await getDoc(fingerprintRef);
+
+    if (!fingerprintDoc.exists()) {
+      return [];
+    }
+
+    const data = fingerprintDoc.data();
+    return data?.linkedUsers || [];
+  } catch (error) {
+    console.error('[getLinkedUserIds] Error fetching linked users:', error);
+    return [];
+  }
+}
+
+/**
  * Get device metadata for debugging/analytics
  */
 export async function getDeviceMetadata() {

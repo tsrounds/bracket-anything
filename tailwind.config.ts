@@ -5,6 +5,7 @@ const config: Config = {
     './pages/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
     './app/**/*.{js,ts,jsx,tsx,mdx}',
+        './app/fitness/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     extend: {
@@ -70,6 +71,14 @@ const config: Config = {
           dark: '#001d3d',
           light: '#003566',
           orange: '#ffc300',
+        },
+        // Fitness app colors
+        fitness: {
+          'blue-dark': '#00296b',
+          'blue-mid': '#003f88',
+          'blue-light': '#00509d',
+          'yellow': '#fdc500',
+          'yellow-light': '#ffd500',
         },
       },
       fontFamily: {

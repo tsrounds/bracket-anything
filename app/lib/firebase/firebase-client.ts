@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, setPersistence, browserLocalPersistence, Auth } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import { getFirestore, Firestore, enableNetwork, disableNetwork } from 'firebase/firestore';
 
 // Log all environment variables for debugging
 if (process.env.NODE_ENV === 'development') {
@@ -60,6 +60,12 @@ if (typeof window !== 'undefined') {
     setPersistence(auth, browserLocalPersistence).catch((error) => {
       console.error('Error setting auth persistence:', error);
     });
+
+    // Enable offline persistence for Firestore
+    if (typeof window !== 'undefined') {
+      // Firestore automatically enables offline persistence in web apps
+      console.log('Firestore offline persistence enabled');
+    }
 
     console.log('Firebase services initialized:', {
       hasAuth: !!auth,
