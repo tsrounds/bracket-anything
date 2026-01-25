@@ -69,9 +69,19 @@ export async function POST(req: Request) {
 
     userPrompt += '\n\nGenerate exactly 10 prediction questions (7 multiple choice, 3 open-ended).';
 
+    // Check for API key
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      console.error('ANTHROPIC_API_KEY is not set in environment variables');
+      return Response.json(
+        { error: 'AI service not configured. Please contact support.' },
+        { status: 503 }
+      );
+    }
+
     // Initialize Anthropic client
     const client = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
+      apiKey,
     });
 
     // Call Claude
