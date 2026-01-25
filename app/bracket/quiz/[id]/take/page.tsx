@@ -14,8 +14,9 @@ import { hasDeviceSubmittedQuiz, getDeviceFingerprint, hashFingerprint, recordDe
 
 interface Question {
   id: string;
+  type: 'multiple' | 'open';
   text: string;
-  options: string[];
+  options?: string[];
   points: number;
 }
 
@@ -214,6 +215,18 @@ export default function TakeQuiz({ params }: Props) {
   const currentQuestion = quiz.questions[currentQuestionIndex];
   const totalQuestions = quiz.questions.length;
 
+  // Guard against undefined currentQuestion
+  if (!currentQuestion) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+        <div className="text-center text-white">
+          <h1 className="text-2xl font-bold mb-4">No Questions Found</h1>
+          <p className="text-white/60">This quiz doesn't have any questions yet.</p>
+        </div>
+      </div>
+    );
+  }
+
   const handleNext = () => {
     if (currentQuestionIndex < totalQuestions - 1) {
       setFadeOut(true);
@@ -235,7 +248,7 @@ export default function TakeQuiz({ params }: Props) {
     }
   };
 
-  const handleAnswerSelect = (questionId: string, answer: string) => {
+  const handleAnswerSelect = (questionId: string, answer: string, isOpenEnded: boolean = false) => {
     console.log('Answer selected:', answer);
     setSelectedAnswer(answer);
     setAnswers(prev => ({
@@ -243,8 +256,8 @@ export default function TakeQuiz({ params }: Props) {
       [questionId]: answer
     }));
 
-    // Automatically move to next question after a longer delay to show checkmark
-    if (currentQuestionIndex < quiz.questions.length - 1) {
+    // Only auto-advance for multiple choice questions, not open-ended
+    if (!isOpenEnded && currentQuestionIndex < quiz.questions.length - 1) {
       setTimeout(() => {
         console.log('Moving to next question');
         setSelectedAnswer(null);
@@ -292,47 +305,81 @@ export default function TakeQuiz({ params }: Props) {
 
         {/* Scrollable Content Section */}
         <div className="mt-16">
-          {/* Answer Options */}
+          {/* Answer Options or Text Input */}
           <div className="space-y-4">
-            {currentQuestion.options.map((option) => {
-              const isSelected = answers[currentQuestion.id] === option;
-              
-              return (
+            {currentQuestion.type === 'open' ? (
+              /* Open-ended question - show text input */
+              <div className="w-full space-y-4">
+                <input
+                  type="text"
+                  value={answers[currentQuestion.id] || ''}
+                  onChange={(e) => handleAnswerSelect(currentQuestion.id, e.target.value, true)}
+                  placeholder="Type your prediction here..."
+                  className="w-full h-12 px-4 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 font-['PP_Object_Sans'] focus:outline-none focus:border-[#acc676]"
+                />
+                {/* Next button for open-ended questions */}
                 <AnimatedButton
-                  key={option}
-                  onClick={() => handleAnswerSelect(currentQuestion.id, option)}
-                  className={`w-full h-12 relative rounded-lg transition-all duration-300 group
-                    ${isSelected 
-                      ? 'bg-[#acc676] border-none' 
-                      : 'bg-transparent border border-white hover:opacity-80'}`}
+                  onClick={() => {
+                    if (currentQuestionIndex < totalQuestions - 1) {
+                      handleNext();
+                    } else {
+                      handleQuizComplete();
+                    }
+                  }}
+                  disabled={!answers[currentQuestion.id]?.trim()}
+                  className={`w-full h-12 rounded-lg transition-all duration-300 ${
+                    answers[currentQuestion.id]?.trim()
+                      ? 'bg-[#acc676] text-white'
+                      : 'bg-white/10 text-white/40 cursor-not-allowed'
+                  }`}
                 >
-                  <div className="flex items-center justify-between px-6">
-                    <span className={`text-base font-normal font-['PP_Object_Sans'] ${isSelected ? 'text-white' : 'text-white'}`}>
-                      {option}
-                    </span>
-                    <div className="relative w-6 h-6 flex items-center justify-center">
-                      {isSelected && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <svg 
-                            className="w-6 h-6 text-white"
-                            fill="none" 
-                            viewBox="0 0 24 24" 
-                            stroke="currentColor"
-                          >
-                            <path 
-                              strokeLinecap="round" 
-                              strokeLinejoin="round" 
-                              strokeWidth={2} 
-                              d="M5 13l4 4L19 7" 
-                            />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <span className="font-['PP_Object_Sans'] font-semibold">
+                    {currentQuestionIndex < totalQuestions - 1 ? 'Next Question' : 'Submit Quiz'}
+                  </span>
                 </AnimatedButton>
-              );
-            })}
+              </div>
+            ) : (
+              /* Multiple choice - show options */
+              currentQuestion.options?.map((option) => {
+                const isSelected = answers[currentQuestion.id] === option;
+
+                return (
+                  <AnimatedButton
+                    key={option}
+                    onClick={() => handleAnswerSelect(currentQuestion.id, option)}
+                    className={`w-full h-12 relative rounded-lg transition-all duration-300 group
+                      ${isSelected
+                        ? 'bg-[#acc676] border-none'
+                        : 'bg-transparent border border-white hover:opacity-80'}`}
+                  >
+                    <div className="flex items-center justify-between px-6">
+                      <span className={`text-base font-normal font-['PP_Object_Sans'] ${isSelected ? 'text-white' : 'text-white'}`}>
+                        {option}
+                      </span>
+                      <div className="relative w-6 h-6 flex items-center justify-center">
+                        {isSelected && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <svg
+                              className="w-6 h-6 text-white"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </AnimatedButton>
+                );
+              })
+            )}
           </div>
 
           {/* Navigation Buttons */}
