@@ -12,7 +12,9 @@ interface AvatarSelectorProps {
 export default function AvatarSelector({ onAvatarSelect, initialAvatar }: AvatarSelectorProps) {
   const [isSelecting, setIsSelecting] = useState(false);
   const [currentAvatar, setCurrentAvatar] = useState(initialAvatar || '');
+  const [displayAvatar, setDisplayAvatar] = useState(initialAvatar || '');
   const [preloadedImages, setPreloadedImages] = useState<string[]>([]);
+  const [rollKey, setRollKey] = useState(0);
 
   // Pokemon sprite paths (Gen 1: 1-151)
   const avatarPaths = [
@@ -169,6 +171,14 @@ export default function AvatarSelector({ onAvatarSelect, initialAvatar }: Avatar
     '/pokemon_sprites_v3/151_Mew.png',
   ];
 
+  // Sync displayAvatar with initialAvatar
+  useEffect(() => {
+    if (initialAvatar) {
+      setDisplayAvatar(initialAvatar);
+      setCurrentAvatar(initialAvatar);
+    }
+  }, [initialAvatar]);
+
   // Preload images
   useEffect(() => {
     const preloadImages = async () => {
@@ -199,46 +209,92 @@ export default function AvatarSelector({ onAvatarSelect, initialAvatar }: Avatar
 
   const selectRandomAvatar = () => {
     setIsSelecting(true);
-    let currentIndex = 0;
-    const interval = setInterval(() => {
-      currentIndex = (currentIndex + 1) % avatarPaths.length;
-      setCurrentAvatar(avatarPaths[currentIndex]);
-    }, 100);
+    setRollKey(prev => prev + 1);
 
-    setTimeout(() => {
-      clearInterval(interval);
-      const finalIndex = Math.floor(Math.random() * avatarPaths.length);
-      setCurrentAvatar(avatarPaths[finalIndex]);
-      setIsSelecting(false);
-      onAvatarSelect(avatarPaths[finalIndex]);
-    }, 1500);
+    // Create a sequence of avatars to show with easing (fast start, slow end)
+    const totalDuration = 1800; // Total animation time
+    const steps = 20; // Number of avatar changes
+    const finalIndex = Math.floor(Math.random() * avatarPaths.length);
+
+    // Generate random indices for the roll, ending with the final one
+    const rollIndices: number[] = [];
+    for (let i = 0; i < steps - 1; i++) {
+      rollIndices.push(Math.floor(Math.random() * avatarPaths.length));
+    }
+    rollIndices.push(finalIndex);
+
+    // Easing function - starts fast, slows down at the end
+    const easeOutQuart = (t: number) => 1 - Math.pow(1 - t, 4);
+
+    // Schedule each avatar change with easing
+    rollIndices.forEach((avatarIndex, step) => {
+      const progress = step / (steps - 1);
+      const easedProgress = easeOutQuart(progress);
+      const delay = easedProgress * totalDuration;
+
+      setTimeout(() => {
+        setDisplayAvatar(avatarPaths[avatarIndex]);
+
+        // On final step, complete the selection
+        if (step === steps - 1) {
+          setCurrentAvatar(avatarPaths[finalIndex]);
+          setIsSelecting(false);
+          onAvatarSelect(avatarPaths[finalIndex]);
+        }
+      }, delay);
+    });
   };
 
   return (
     <div className="flex flex-row items-center justify-center gap-6">
       <div className="relative w-32 h-32 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center">
-        <AnimatePresence mode="wait">
-          {currentAvatar && (
-            <motion.div
-              key={currentAvatar}
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="absolute inset-0 flex items-center justify-center"
-            >
+        {isSelecting ? (
+          // During rolling animation - quick vertical flip without AnimatePresence delays
+          <motion.div
+            key={`roll-${displayAvatar}`}
+            initial={{ y: -40, opacity: 0, rotateX: -90 }}
+            animate={{ y: 0, opacity: 1, rotateX: 0 }}
+            transition={{ duration: 0.08, ease: "easeOut" }}
+            className="absolute inset-0 flex items-center justify-center"
+            style={{ perspective: 1000 }}
+          >
+            {displayAvatar && (
               <Image
-                src={currentAvatar}
-                alt="Selected avatar"
+                src={displayAvatar}
+                alt="Rolling avatar"
                 fill
                 className="object-contain p-2"
                 sizes="(max-width: 128px) 100vw, 128px"
                 priority
                 style={{ objectPosition: 'center' }}
               />
-            </motion.div>
-          )}
-        </AnimatePresence>
+            )}
+          </motion.div>
+        ) : (
+          // Static display with gentle entrance animation
+          <AnimatePresence mode="wait">
+            {currentAvatar && (
+              <motion.div
+                key={currentAvatar}
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="absolute inset-0 flex items-center justify-center"
+              >
+                <Image
+                  src={currentAvatar}
+                  alt="Selected avatar"
+                  fill
+                  className="object-contain p-2"
+                  sizes="(max-width: 128px) 100vw, 128px"
+                  priority
+                  style={{ objectPosition: 'center' }}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        )}
       </div>
       
       <button
