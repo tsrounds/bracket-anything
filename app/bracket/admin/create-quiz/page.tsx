@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '../../../lib/firebase/firebase-client';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, getDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import AuthCheck from '../../../components/AuthCheck';
@@ -10,6 +10,7 @@ import ErrorBoundary from '../../../components/ErrorBoundary';
 import AIQuizAssistantButton from '../../../components/predict-this/AIQuizAssistantButton';
 import AIQuizModal from '../../../components/predict-this/AIQuizModal';
 import type { AIGeneratedQuiz } from '../../../lib/predict-this/ai-schemas';
+import { useAuthReady } from '../../../lib/hooks/useAuthReady';
 
 interface Question {
   id: string;
@@ -47,6 +48,7 @@ const staggerItem = {
 
 function CreateQuizContent() {
   const router = useRouter();
+  const { user, authReady, authError, refreshAuth } = useAuthReady();
   const [title, setTitle] = useState('');
   const [deadline, setDeadline] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -214,24 +216,26 @@ function CreateQuizContent() {
         throw new Error('Firestore database not initialized');
       }
 
-      let creatorId, creatorName, creatorAvatar;
-      const { auth } = await import('../../../lib/firebase/firebase-client');
-      const currentUser = auth.currentUser;
+      // Ensure auth is ready and get a valid user - REQUIRED for quiz ownership
+      const currentUser = await refreshAuth();
+      if (!currentUser?.uid) {
+        throw new Error('Authentication required. Please refresh the page and try again.');
+      }
 
-      if (currentUser) {
-        creatorId = currentUser.uid;
-        try {
-          const { doc, getDoc } = await import('firebase/firestore');
-          const profileRef = doc(db as any, 'userProfiles', currentUser.uid);
-          const profileDoc = await getDoc(profileRef);
-          if (profileDoc.exists()) {
-            const profileData = profileDoc.data();
-            creatorName = profileData.name;
-            creatorAvatar = profileData.avatar;
-          }
-        } catch (error) {
-          console.log('Could not fetch user profile, continuing without creator info');
+      const creatorId = currentUser.uid;
+      let creatorName, creatorAvatar;
+
+      // Fetch user profile for display info (optional, but nice to have)
+      try {
+        const profileRef = doc(db as any, 'userProfiles', creatorId);
+        const profileDoc = await getDoc(profileRef);
+        if (profileDoc.exists()) {
+          const profileData = profileDoc.data();
+          creatorName = profileData.name;
+          creatorAvatar = profileData.avatar;
         }
+      } catch (error) {
+        console.log('Could not fetch user profile, continuing with UID only');
       }
 
       // Clean questions to remove undefined options
@@ -248,24 +252,18 @@ function CreateQuizContent() {
         return cleaned;
       });
 
+      // Build quiz data - creatorId is ALWAYS required
       const quizData: QuizData = {
         title: title.trim(),
         createdAt: new Date().toISOString(),
         status: 'in-progress' as const,
         questions: cleanedQuestions,
-        deadline: new Date(deadline).toISOString()
+        deadline: new Date(deadline).toISOString(),
+        creatorId, // Always included - guaranteed by refreshAuth() above
+        ...(coverImage && { coverImage }),
+        ...(creatorName && { creatorName }),
+        ...(creatorAvatar && { creatorAvatar }),
       };
-
-      // Only add coverImage if it has a value
-      if (coverImage) {
-        quizData.coverImage = coverImage;
-      }
-
-      if (creatorId) {
-        (quizData as any).creatorId = creatorId;
-        if (creatorName) (quizData as any).creatorName = creatorName;
-        if (creatorAvatar) (quizData as any).creatorAvatar = creatorAvatar;
-      }
 
       console.log('Quiz data to be saved:', quizData);
       console.log('Attempting to save to Firestore...');
@@ -280,9 +278,14 @@ function CreateQuizContent() {
 
       // Record device fingerprint to link this UID to the device
       // This ensures quizzes appear in "My Quizzes" across sessions
-      if (creatorId) {
+      // IMPORTANT: Wait for this to complete before redirecting
+      try {
         const { recordDeviceFingerprint } = await import('../../../lib/deviceFingerprint');
         await recordDeviceFingerprint(creatorId);
+        console.log('Device fingerprint recorded successfully');
+      } catch (fpError) {
+        // Log but don't fail - the quiz is already saved with creatorId
+        console.error('Failed to record device fingerprint:', fpError);
       }
 
       console.log('Redirecting to quizzes list...');
@@ -342,6 +345,41 @@ function CreateQuizContent() {
             transition={{ delay: 0.2 }}
             className="bg-white/5 border border-white/10 rounded-2xl p-6 md:p-8"
           >
+            {/* Auth error state */}
+            {authError && (
+              <div className="rounded-xl bg-red-500/10 border border-red-500/30 p-4 mb-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <svg className="h-5 w-5 text-red-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                    <p className="text-red-400 font-['PP_Object_Sans']">Authentication error: {authError}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                    className="px-3 py-1 text-sm bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors font-['PP_Object_Sans']"
+                  >
+                    Retry
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Auth loading state */}
+            {!authReady && !authError && (
+              <div className="rounded-xl bg-yellow-500/10 border border-yellow-500/30 p-4 mb-6">
+                <div className="flex items-center gap-3">
+                  <svg className="w-5 h-5 text-yellow-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  <p className="text-yellow-400 font-['PP_Object_Sans']">Initializing authentication...</p>
+                </div>
+              </div>
+            )}
+
+            {/* Form error state */}
             {error && (
               <div className="rounded-xl bg-red-500/10 border border-red-500/30 p-4 mb-6">
                 <div className="flex items-center gap-3">
@@ -610,12 +648,20 @@ function CreateQuizContent() {
               {/* Submit Button */}
               <motion.button
                 type="submit"
-                disabled={isSubmitting}
-                whileHover={{ scale: isSubmitting ? 1 : 1.01 }}
-                whileTap={{ scale: isSubmitting ? 1 : 0.99 }}
+                disabled={isSubmitting || !authReady || !!authError}
+                whileHover={{ scale: (isSubmitting || !authReady) ? 1 : 1.01 }}
+                whileTap={{ scale: (isSubmitting || !authReady) ? 1 : 0.99 }}
                 className="w-full py-4 bg-gradient-to-r from-[#38bdf8] to-[#56c8fa] text-white text-lg font-semibold rounded-xl hover:shadow-lg hover:shadow-[#38bdf8]/20 disabled:opacity-50 disabled:cursor-not-allowed font-['PP_Object_Sans'] transition-all"
               >
-                {isSubmitting ? (
+                {!authReady ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Initializing...
+                  </span>
+                ) : isSubmitting ? (
                   <span className="flex items-center justify-center gap-2">
                     <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
