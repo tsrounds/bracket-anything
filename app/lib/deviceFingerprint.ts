@@ -221,3 +221,86 @@ export async function getDeviceMetadata() {
     return null;
   }
 }
+
+const CREATOR_UIDS_KEY = 'creatorUids';
+
+/**
+ * Store creator UID in localStorage as backup for device fingerprinting
+ * This ensures quizzes are found even if fingerprinting fails
+ * @param uid Firebase user ID
+ */
+export function storeCreatorUid(uid: string): void {
+  if (typeof window === 'undefined') return;
+
+  try {
+    const stored = localStorage.getItem(CREATOR_UIDS_KEY);
+    const uids: string[] = stored ? JSON.parse(stored) : [];
+    if (!uids.includes(uid)) {
+      uids.push(uid);
+      localStorage.setItem(CREATOR_UIDS_KEY, JSON.stringify(uids));
+      console.log('[storeCreatorUid] Stored UID in localStorage:', uid);
+    }
+  } catch (error) {
+    console.error('[storeCreatorUid] Error storing UID:', error);
+  }
+}
+
+/**
+ * Get stored creator UIDs from localStorage
+ * Used as fallback when device fingerprinting fails
+ * @returns Array of stored UIDs, or empty array if none
+ */
+export function getStoredCreatorUids(): string[] {
+  if (typeof window === 'undefined') return [];
+
+  try {
+    const stored = localStorage.getItem(CREATOR_UIDS_KEY);
+    const uids = stored ? JSON.parse(stored) : [];
+    console.log('[getStoredCreatorUids] Retrieved UIDs from localStorage:', uids);
+    return uids;
+  } catch (error) {
+    console.error('[getStoredCreatorUids] Error reading UIDs:', error);
+    return [];
+  }
+}
+
+const MY_QUIZ_IDS_KEY = 'myQuizIds';
+
+/**
+ * Store a quiz ID in localStorage when user creates a quiz
+ * This is the most reliable way to track "my quizzes" - independent of UID matching
+ * @param quizId The Firestore document ID of the created quiz
+ */
+export function storeMyQuizId(quizId: string): void {
+  if (typeof window === 'undefined') return;
+
+  try {
+    const stored = localStorage.getItem(MY_QUIZ_IDS_KEY);
+    const ids: string[] = stored ? JSON.parse(stored) : [];
+    if (!ids.includes(quizId)) {
+      ids.push(quizId);
+      localStorage.setItem(MY_QUIZ_IDS_KEY, JSON.stringify(ids));
+      console.log('[storeMyQuizId] Stored quiz ID in localStorage:', quizId);
+    }
+  } catch (error) {
+    console.error('[storeMyQuizId] Error storing quiz ID:', error);
+  }
+}
+
+/**
+ * Get all quiz IDs created by this user from localStorage
+ * @returns Array of quiz IDs, or empty array if none
+ */
+export function getMyQuizIds(): string[] {
+  if (typeof window === 'undefined') return [];
+
+  try {
+    const stored = localStorage.getItem(MY_QUIZ_IDS_KEY);
+    const ids = stored ? JSON.parse(stored) : [];
+    console.log('[getMyQuizIds] Retrieved quiz IDs from localStorage:', ids);
+    return ids;
+  } catch (error) {
+    console.error('[getMyQuizIds] Error reading quiz IDs:', error);
+    return [];
+  }
+}

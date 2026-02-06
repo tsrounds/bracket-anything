@@ -5,12 +5,12 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../components/UserAuth';
 import { db } from '../../lib/firebase/firebase-client';
-import { collection, query, where, getDocs, orderBy, doc, getDoc, setDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, doc, getDoc, setDoc, documentId } from 'firebase/firestore';
 import UserInfoBadge from '../../components/predict-this/UserInfoBadge';
 import AvatarSelector from '../../components/AvatarSelector';
 import { Quiz } from '../../lib/predict-this/types';
 import { staggerContainer, staggerItem } from '../../../lib/motion';
-import { getLinkedUserIds } from '../../lib/deviceFingerprint';
+import { getLinkedUserIds, getStoredCreatorUids, getMyQuizIds } from '../../lib/deviceFingerprint';
 
 export default function MyQuizzes() {
   const { user, loading: authLoading } = useAuth();
@@ -47,28 +47,62 @@ export default function MyQuizzes() {
           setUserPhone(profileData.phoneNumber || '');
         }
 
-        // Get all UIDs linked to this device (handles session loss for anonymous users)
-        const linkedUserIds = await getLinkedUserIds();
+        // PRIMARY METHOD: Get quiz IDs directly from localStorage
+        // This is the most reliable method - doesn't depend on UID matching
+        const myQuizIds = getMyQuizIds();
+        console.log('[MyQuizzes] Quiz IDs from localStorage:', myQuizIds);
 
-        // Ensure current user is in the list
-        if (!linkedUserIds.includes(user.uid)) {
-          linkedUserIds.push(user.uid);
+        let quizzesList: Quiz[] = [];
+
+        // Fetch quizzes by their IDs directly
+        if (myQuizIds.length > 0) {
+          const idsToQuery = myQuizIds.slice(0, 30);  // Firestore 'in' limit
+          const quizIdQuery = query(
+            collection(db as any, 'quizzes'),
+            where(documentId(), 'in', idsToQuery)
+          );
+          const idSnapshot = await getDocs(quizIdQuery);
+          quizzesList = idSnapshot.docs.map(d => ({
+            id: d.id,
+            ...d.data()
+          })) as Quiz[];
+          console.log('[MyQuizzes] Found by quiz IDs:', quizzesList.length);
         }
 
-        // Fetch quizzes created by any UID linked to this device
-        // Firestore 'in' query supports up to 30 values
-        const uidsToQuery = linkedUserIds.slice(0, 30);
+        // FALLBACK: Also try UID-based query for backwards compatibility
+        // This catches quizzes created before the quiz ID storage was added
+        const linkedUserIds = await getLinkedUserIds();
+        const storedUids = getStoredCreatorUids();
+        const allUids = [...new Set([...linkedUserIds, ...storedUids, user.uid])];
+        console.log('[MyQuizzes] UIDs for fallback query:', allUids);
 
-        const quizzesQuery = query(
-          collection(db as any, 'quizzes'),
-          where('creatorId', 'in', uidsToQuery),
-          orderBy('createdAt', 'desc')
+        if (allUids.length > 0) {
+          const uidsToQuery = allUids.slice(0, 30);
+          const uidQuery = query(
+            collection(db as any, 'quizzes'),
+            where('creatorId', 'in', uidsToQuery)
+          );
+          const uidSnapshot = await getDocs(uidQuery);
+          const uidQuizzes = uidSnapshot.docs.map(d => ({
+            id: d.id,
+            ...d.data()
+          })) as Quiz[];
+          console.log('[MyQuizzes] Found by UIDs:', uidQuizzes.length);
+
+          // Merge and deduplicate
+          const existingIds = new Set(quizzesList.map(q => q.id));
+          for (const quiz of uidQuizzes) {
+            if (!existingIds.has(quiz.id)) {
+              quizzesList.push(quiz);
+            }
+          }
+        }
+
+        // Sort by createdAt descending
+        quizzesList.sort((a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
-        const quizzesSnapshot = await getDocs(quizzesQuery);
-        const quizzesList = quizzesSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Quiz[];
+        console.log('[MyQuizzes] Total quizzes found:', quizzesList.length);
 
         setQuizzes(quizzesList);
       } catch (error) {

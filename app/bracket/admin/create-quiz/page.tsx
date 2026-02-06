@@ -5,7 +5,6 @@ import { db } from '../../../lib/firebase/firebase-client';
 import { collection, addDoc, doc, getDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import AuthCheck from '../../../components/AuthCheck';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import AIQuizAssistantButton from '../../../components/predict-this/AIQuizAssistantButton';
 import AIQuizModal from '../../../components/predict-this/AIQuizModal';
@@ -276,16 +275,24 @@ function CreateQuizContent() {
       const docRef = await addDoc(quizzesCollection, quizData);
       console.log('Quiz created successfully with ID:', docRef.id);
 
-      // Record device fingerprint to link this UID to the device
-      // This ensures quizzes appear in "My Quizzes" across sessions
-      // IMPORTANT: Wait for this to complete before redirecting
+      // Store quiz ID directly in localStorage - most reliable method for "My Quizzes"
+      // This works regardless of UID matching issues with anonymous auth
       try {
-        const { recordDeviceFingerprint } = await import('../../../lib/deviceFingerprint');
-        await recordDeviceFingerprint(creatorId);
-        console.log('Device fingerprint recorded successfully');
+        const { storeMyQuizId, recordDeviceFingerprint, storeCreatorUid } = await import('../../../lib/deviceFingerprint');
+        storeMyQuizId(docRef.id);  // Store quiz ID first - this is the critical one
+        storeCreatorUid(creatorId);  // Also store UID as backup
+        await recordDeviceFingerprint(creatorId);  // Device fingerprint for cross-device (optional)
+        console.log('Quiz ID and device fingerprint recorded successfully');
       } catch (fpError) {
-        // Log but don't fail - the quiz is already saved with creatorId
-        console.error('Failed to record device fingerprint:', fpError);
+        // Log but don't fail - the quiz is already saved
+        console.error('Failed to record fingerprint:', fpError);
+        // At minimum, store the quiz ID in localStorage
+        try {
+          const { storeMyQuizId } = await import('../../../lib/deviceFingerprint');
+          storeMyQuizId(docRef.id);
+        } catch (e) {
+          console.error('Failed to store quiz ID in localStorage:', e);
+        }
       }
 
       console.log('Redirecting to quizzes list...');
@@ -689,9 +696,5 @@ function CreateQuizContent() {
 }
 
 export default function CreateQuiz() {
-  return (
-    <AuthCheck>
-      <CreateQuizContent />
-    </AuthCheck>
-  );
+  return <CreateQuizContent />;
 }
