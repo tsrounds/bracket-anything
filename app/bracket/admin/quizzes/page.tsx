@@ -15,7 +15,7 @@ import {
   DocumentReference
 } from 'firebase/firestore';
 import Link from 'next/link';
-import AnswerSelectionModal from '../../../components/AnswerSelectionModal';
+import CompleteQuizModal from '../../../components/quiz/CompleteQuizModal';
 
 interface Question {
   id: string;
@@ -425,7 +425,7 @@ export default function Quizzes() {
       )}
 
       {selectedQuiz && (
-        <AnswerSelectionModal
+        <CompleteQuizModal
           isOpen={isModalOpen}
           onClose={handleModalClose}
           onComplete={handleAnswerSubmit}
