@@ -73,7 +73,7 @@ export default function MyQuizzes() {
         // This catches quizzes created before the quiz ID storage was added
         const linkedUserIds = await getLinkedUserIds();
         const storedUids = getStoredCreatorUids();
-        const allUids = [...new Set([...linkedUserIds, ...storedUids, user.uid])];
+        const allUids = Array.from(new Set([...linkedUserIds, ...storedUids, user.uid]));
         console.log('[MyQuizzes] UIDs for fallback query:', allUids);
 
         if (allUids.length > 0) {
