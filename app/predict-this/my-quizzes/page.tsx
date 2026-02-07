@@ -5,12 +5,94 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../components/UserAuth';
 import { db } from '../../lib/firebase/firebase-client';
-import { collection, query, where, getDocs, orderBy, doc, getDoc, setDoc, documentId } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, doc, getDoc, setDoc, documentId, updateDoc } from 'firebase/firestore';
 import UserInfoBadge from '../../components/predict-this/UserInfoBadge';
 import AvatarSelector from '../../components/AvatarSelector';
 import { Quiz } from '../../lib/predict-this/types';
+import CompleteQuizModal from '../../components/quiz/CompleteQuizModal';
 import { staggerContainer, staggerItem } from '../../../lib/motion';
 import { getLinkedUserIds, getStoredCreatorUids, getMyQuizIds } from '../../lib/deviceFingerprint';
+
+const AVATAR_BLUE = '#67D3F6';
+
+function AvatarCircle({ avatar, name, index }: { avatar?: string; name: string; index: number }) {
+  const style = {
+    marginLeft: index > 0 ? '-8px' : 0,
+    zIndex: 5 - index,
+    position: 'relative' as const,
+  };
+
+  if (avatar) {
+    return (
+      <img
+        src={avatar}
+        alt={name}
+        className="w-8 h-8 rounded-full object-cover border-2 border-[#0f172A]"
+        style={style}
+      />
+    );
+  }
+
+  return (
+    <div
+      className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 border-[#0f172A]"
+      style={{
+        ...style,
+        background: AVATAR_BLUE,
+        color: '#1e293b',
+      }}
+    >
+      {name[0]?.toUpperCase() || '?'}
+    </div>
+  );
+}
+
+function SubmissionIndicator({ count, submitters }: { count: number; submitters: { name: string; avatar?: string }[] }) {
+  if (count === 0) {
+    return (
+      <span className="text-white/40 text-sm font-['PP_Object_Sans']">
+        0 submissions
+      </span>
+    );
+  }
+
+  if (count === 1) {
+    return (
+      <div className="flex items-center gap-2">
+        <AvatarCircle avatar={submitters[0]?.avatar} name={submitters[0]?.name || 'User'} index={0} />
+        <span className="text-white/60 text-sm font-['PP_Object_Sans']">has submitted</span>
+      </div>
+    );
+  }
+
+  if (count <= 4) {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="flex items-center">
+          {submitters.slice(0, count).map((submitter, index) => (
+            <AvatarCircle key={index} avatar={submitter.avatar} name={submitter.name} index={index} />
+          ))}
+        </div>
+        <span className="text-white/60 text-sm font-['PP_Object_Sans']">have submitted</span>
+      </div>
+    );
+  }
+
+  // 5+ submissions
+  const remaining = count - 5;
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex items-center">
+        {submitters.slice(0, 5).map((submitter, index) => (
+          <AvatarCircle key={index} avatar={submitter.avatar} name={submitter.name} index={index} />
+        ))}
+      </div>
+      <span className="text-white/60 text-sm font-['PP_Object_Sans']">
+        + {remaining} more {remaining === 1 ? 'has' : 'have'} submitted
+      </span>
+    </div>
+  );
+}
 
 export default function MyQuizzes() {
   const { user, loading: authLoading } = useAuth();
@@ -27,6 +109,17 @@ export default function MyQuizzes() {
   const [editPhone, setEditPhone] = useState('');
   const [editAvatar, setEditAvatar] = useState<string | undefined>(undefined);
   const [saving, setSaving] = useState(false);
+
+  // Complete quiz modal state
+  const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
+  const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
+  const [completing, setCompleting] = useState<string | null>(null);
+
+  // Submission data for each quiz
+  const [submissionData, setSubmissionData] = useState<Record<string, {
+    count: number;
+    submitters: { name: string; avatar?: string }[];
+  }>>({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -105,6 +198,41 @@ export default function MyQuizzes() {
         console.log('[MyQuizzes] Total quizzes found:', quizzesList.length);
 
         setQuizzes(quizzesList);
+
+        // Fetch submissions for all quizzes
+        if (quizzesList.length > 0) {
+          const submissionDataMap: Record<string, { count: number; submitters: { name: string; avatar?: string }[] }> = {};
+
+          await Promise.all(quizzesList.map(async (quiz) => {
+            const submissionsQuery = query(
+              collection(db as any, 'submissions'),
+              where('quizId', '==', quiz.id)
+            );
+            const submissionsSnapshot = await getDocs(submissionsQuery);
+
+            // Get unique user IDs and their names
+            const submissions = submissionsSnapshot.docs.map(d => d.data());
+            const userIds = Array.from(new Set(submissions.map(s => s.userId)));
+
+            // Fetch avatars for submitters
+            const submitters: { name: string; avatar?: string }[] = [];
+            await Promise.all(userIds.slice(0, 5).map(async (uid, index) => {
+              const submission = submissions.find(s => s.userId === uid);
+              const profileDoc = await getDoc(doc(db as any, 'userProfiles', uid));
+              submitters[index] = {
+                name: submission?.userName || 'User',
+                avatar: profileDoc.exists() ? profileDoc.data().avatar : undefined
+              };
+            }));
+
+            submissionDataMap[quiz.id] = {
+              count: submissions.length,
+              submitters
+            };
+          }));
+
+          setSubmissionData(submissionDataMap);
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -198,6 +326,74 @@ export default function MyQuizzes() {
       alert('Failed to save profile. Please try again.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleCompleteClick = (e: React.MouseEvent, quiz: Quiz) => {
+    e.stopPropagation();
+    setSelectedQuiz(quiz);
+    setIsCompleteModalOpen(true);
+  };
+
+  const handleCompleteModalClose = () => {
+    setIsCompleteModalOpen(false);
+    setSelectedQuiz(null);
+  };
+
+  const handleAnswerSubmit = async (answers: Record<string, string>) => {
+    if (!selectedQuiz) return;
+
+    try {
+      setCompleting(selectedQuiz.id);
+      const quizRef = doc(db as any, 'quizzes', selectedQuiz.id);
+
+      // Update quiz status and correct answers
+      await updateDoc(quizRef, {
+        status: 'completed',
+        correctAnswers: answers,
+        completedAt: new Date().toISOString()
+      });
+
+      // Get all submissions for this quiz and calculate scores
+      const submissionsRef = collection(db as any, 'submissions');
+      const submissionsQuery = query(submissionsRef, where('quizId', '==', selectedQuiz.id));
+      const submissionsSnapshot = await getDocs(submissionsQuery);
+
+      // Calculate and update scores for each submission
+      await Promise.all(
+        submissionsSnapshot.docs.map(async (submissionDoc) => {
+          const submission = submissionDoc.data();
+          let score = 0;
+
+          Object.entries(submission.answers as Record<string, string>).forEach(([questionId, answer]) => {
+            if (answer === answers[questionId]) {
+              const question = selectedQuiz.questions.find(q => q.id === questionId);
+              if (question) {
+                score += question.points;
+              }
+            }
+          });
+
+          await updateDoc(submissionDoc.ref, { score });
+        })
+      );
+
+      // Update local state
+      setQuizzes(prevQuizzes =>
+        prevQuizzes.map(quiz =>
+          quiz.id === selectedQuiz.id
+            ? { ...quiz, status: 'completed' as const, correctAnswers: answers }
+            : quiz
+        )
+      );
+
+      setIsCompleteModalOpen(false);
+      setSelectedQuiz(null);
+    } catch (error) {
+      console.error('Error completing quiz:', error);
+      alert('Failed to complete quiz. Please try again.');
+    } finally {
+      setCompleting(null);
     }
   };
 
@@ -310,6 +506,25 @@ export default function MyQuizzes() {
                     Deadline: {new Date(quiz.deadline).toLocaleString()}
                   </div>
                 )}
+                {/* Submission Indicator */}
+                <div className="mt-3">
+                  <SubmissionIndicator
+                    count={submissionData[quiz.id]?.count ?? 0}
+                    submitters={submissionData[quiz.id]?.submitters ?? []}
+                  />
+                </div>
+                {/* Complete Button for Active Quizzes */}
+                {quiz.status === 'in-progress' && (
+                  <div className="mt-4 pt-4 border-t border-white/10">
+                    <button
+                      onClick={(e) => handleCompleteClick(e, quiz)}
+                      disabled={completing === quiz.id}
+                      className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-600/50 text-white text-sm font-semibold font-['PP_Object_Sans'] rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-[#0f172A]"
+                    >
+                      {completing === quiz.id ? 'Completing...' : 'Complete Quiz'}
+                    </button>
+                  </div>
+                )}
               </motion.div>
             ))}
           </motion.div>
@@ -396,6 +611,17 @@ export default function MyQuizzes() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Complete Quiz Modal */}
+      {selectedQuiz && (
+        <CompleteQuizModal
+          isOpen={isCompleteModalOpen}
+          onClose={handleCompleteModalClose}
+          onComplete={handleAnswerSubmit}
+          questions={selectedQuiz.questions}
+          quizTitle={selectedQuiz.title}
+        />
       )}
     </div>
   );
