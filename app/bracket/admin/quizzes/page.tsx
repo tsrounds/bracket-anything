@@ -32,7 +32,7 @@ interface Quiz {
   createdAt: string;
   status: 'in-progress' | 'completed';
   questions: Question[];
-  correctAnswers?: Record<string, string>;
+  correctAnswers?: Record<string, string | string[]>;
   completedAt?: string;
   coverImage?: string;
 }
@@ -152,7 +152,7 @@ export default function Quizzes() {
     setSelectedQuiz(null);
   };
 
-  const handleAnswerSubmit = async (answers: Record<string, string>) => {
+  const handleAnswerSubmit = async (answers: Record<string, string | string[]>) => {
     if (!selectedQuiz || typeof window === 'undefined') return;
 
     try {
@@ -194,12 +194,15 @@ export default function Quizzes() {
         });
         
         Object.entries(submission.answers).forEach(([questionId, answer]) => {
-          const isCorrect = answer === answers[questionId];
+          const correctAnswer = answers[questionId];
+          const isCorrect = Array.isArray(correctAnswer)
+            ? correctAnswer.includes(answer)
+            : answer === correctAnswer;
           const question = selectedQuiz.questions.find(q => q.id === questionId);
           console.log('Checking answer:', {
             questionId,
             userAnswer: answer,
-            correctAnswer: answers[questionId],
+            correctAnswer,
             isCorrect,
             questionPoints: question?.points
           });
@@ -431,6 +434,7 @@ export default function Quizzes() {
           onComplete={handleAnswerSubmit}
           questions={selectedQuiz.questions}
           quizTitle={selectedQuiz.title}
+          quizId={selectedQuiz.id}
         />
       )}
     </div>

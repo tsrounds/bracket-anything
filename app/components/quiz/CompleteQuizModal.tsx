@@ -14,9 +14,10 @@ type AutoStep = 'validating' | 'preview' | 'error';
 interface CompleteQuizModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onComplete: (answers: Record<string, string>) => void;
+  onComplete: (answers: Record<string, string | string[]>) => void;
   questions: QuizQuestion[];
   quizTitle: string;
+  quizId?: string;
 }
 
 export default function CompleteQuizModal({
@@ -25,6 +26,7 @@ export default function CompleteQuizModal({
   onComplete,
   questions,
   quizTitle,
+  quizId,
 }: CompleteQuizModalProps) {
   const [mode, setMode] = useState<Mode>('choose');
   const [autoStep, setAutoStep] = useState<AutoStep>('validating');
@@ -97,6 +99,7 @@ export default function CompleteQuizModal({
         }}
         questions={questions}
         quizTitle={quizTitle}
+        quizId={quizId}
       />
     );
   }
