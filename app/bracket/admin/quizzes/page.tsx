@@ -195,9 +195,10 @@ export default function Quizzes() {
         
         Object.entries(submission.answers).forEach(([questionId, answer]) => {
           const correctAnswer = answers[questionId];
+          const participantAnswer = answer.trim();
           const isCorrect = Array.isArray(correctAnswer)
-            ? correctAnswer.includes(answer)
-            : answer === correctAnswer;
+            ? correctAnswer.some(ca => ca.trim() === participantAnswer)
+            : participantAnswer === (correctAnswer as string).trim();
           const question = selectedQuiz.questions.find(q => q.id === questionId);
           console.log('Checking answer:', {
             questionId,

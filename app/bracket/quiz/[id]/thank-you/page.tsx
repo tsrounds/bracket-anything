@@ -23,7 +23,7 @@ interface Quiz {
   title: string;
   coverImage?: string;
   questions: Question[];
-  correctAnswers?: Record<string, string>;
+  correctAnswers?: Record<string, string | string[]>;
   status: 'in-progress' | 'completed';
 }
 
@@ -115,9 +115,11 @@ function ResultsModal({
 
         <div className="space-y-5">
           {quiz.questions.map((question) => {
-            const userAnswer = submission.answers[question.id];
+            const userAnswer = submission.answers[question.id] ?? '';
             const correctAnswer = quiz.correctAnswers?.[question.id];
-            const isCorrect = userAnswer === correctAnswer;
+            const isCorrect = Array.isArray(correctAnswer)
+              ? correctAnswer.some(ca => ca.trim() === userAnswer.trim())
+              : userAnswer.trim() === (correctAnswer ?? '').trim();
 
             return (
               <div 
@@ -148,7 +150,7 @@ function ResultsModal({
                   </p>
                   {quiz.status === 'completed' && (
                     <p className="text-slate-300 font-['PP_Object_Sans']">
-                      <span className="text-slate-400">Correct answer:</span> <span className="font-medium text-white">{correctAnswer}</span>
+                      <span className="text-slate-400">Correct answer:</span> <span className="font-medium text-white">{Array.isArray(correctAnswer) ? correctAnswer.join(', ') : correctAnswer}</span>
                     </p>
                   )}
                 </div>
@@ -175,9 +177,12 @@ function calculateScore(submission: Submission, quiz: Quiz): number {
   if (!quiz?.correctAnswers || !quiz?.questions) return 0;
   let score = 0;
   for (const q of quiz.questions) {
-    if (submission.answers?.[q.id] === quiz.correctAnswers[q.id]) {
-      score += q.points;
-    }
+    const correctAnswer = quiz.correctAnswers[q.id];
+    const participantAnswer = (submission.answers?.[q.id] ?? '').trim();
+    const isCorrect = Array.isArray(correctAnswer)
+      ? correctAnswer.some(ca => ca.trim() === participantAnswer)
+      : participantAnswer === (correctAnswer ?? '').trim();
+    if (isCorrect) score += q.points;
   }
   return score;
 }
@@ -514,6 +519,26 @@ function ThankYouContent({ params, searchParams }: { params: { id: string }, sea
 
   return (
     <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center relative">
+      {/* Back to My Quizzes */}
+      <button
+        onClick={() => router.push('/predict-this/my-quizzes')}
+        className="absolute top-4 left-4 md:top-8 md:left-8 text-white/60 hover:text-white transition-colors z-10"
+      >
+        <svg
+          className="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 19l-7-7 7-7"
+          />
+        </svg>
+      </button>
+
       {/* User Info Badge - Clickable */}
       {userName && (
         <button

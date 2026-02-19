@@ -367,7 +367,10 @@ export default function MyQuizzes() {
 
           Object.entries(submission.answers as Record<string, string>).forEach(([questionId, answer]) => {
             const correctAnswer = answers[questionId];
-            const isCorrect = Array.isArray(correctAnswer) ? correctAnswer.includes(answer) : answer === correctAnswer;
+            const participantAnswer = answer.trim();
+            const isCorrect = Array.isArray(correctAnswer)
+              ? correctAnswer.some(ca => ca.trim() === participantAnswer)
+              : participantAnswer === (correctAnswer as string).trim();
             if (isCorrect) {
               const question = selectedQuiz.questions.find(q => q.id === questionId);
               if (question) {
