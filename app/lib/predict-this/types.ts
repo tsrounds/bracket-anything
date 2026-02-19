@@ -20,7 +20,7 @@ export interface Quiz {
   creatorId?: string;                 // Added for predict-this user tracking
   creatorName?: string;               // Added for predict-this user tracking
   creatorAvatar?: string;             // Added for predict-this user tracking
-  correctAnswers?: Record<string, string>;
+  correctAnswers?: Record<string, string | string[]>;
   completedAt?: string;
 }
 

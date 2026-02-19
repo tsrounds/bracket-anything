@@ -81,7 +81,7 @@ export interface Quiz {
   questions: Question[];
   status: 'active' | 'completed' | 'in-progress';
   deadline?: string;
-  correctAnswers?: Record<string, string>;
+  correctAnswers?: Record<string, string | string[]>;
   completedAt?: string;
   creatorId?: string;
   creatorName?: string;
