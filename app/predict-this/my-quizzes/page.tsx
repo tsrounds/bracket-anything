@@ -340,7 +340,7 @@ export default function MyQuizzes() {
     setSelectedQuiz(null);
   };
 
-  const handleAnswerSubmit = async (answers: Record<string, string>) => {
+  const handleAnswerSubmit = async (answers: Record<string, string | string[]>) => {
     if (!selectedQuiz) return;
 
     try {
@@ -366,7 +366,9 @@ export default function MyQuizzes() {
           let score = 0;
 
           Object.entries(submission.answers as Record<string, string>).forEach(([questionId, answer]) => {
-            if (answer === answers[questionId]) {
+            const correctAnswer = answers[questionId];
+            const isCorrect = Array.isArray(correctAnswer) ? correctAnswer.includes(answer) : answer === correctAnswer;
+            if (isCorrect) {
               const question = selectedQuiz.questions.find(q => q.id === questionId);
               if (question) {
                 score += question.points;
