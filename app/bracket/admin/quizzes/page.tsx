@@ -52,7 +52,7 @@ export default function Quizzes() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [copiedQuizId, setCopiedQuizId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { refreshAuth } = useAuthReady();
+  const { user } = useAuthReady();
 
   useEffect(() => {
     console.log('Quizzes component mounted:', {
@@ -111,27 +111,23 @@ export default function Quizzes() {
   const handleStatusChange = async (quizId: string, currentStatus: 'in-progress' | 'completed') => {
     try {
       setUpdating(quizId);
-      if (typeof window === 'undefined') {
-        throw new Error('Cannot update quiz status on server side');
+      const newStatus = currentStatus === 'in-progress' ? 'completed' : 'in-progress';
+
+      console.log('Updating quiz status in Firebase:', { quizId, currentStatus, newStatus });
+
+      const response = await fetch('/api/admin/quiz-status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quizId, newStatus, requestingUid: user?.uid }),
+      });
+
+      if (!response.ok) {
+        const { error } = await response.json();
+        throw new Error(error || 'Failed to update quiz status');
       }
 
-      await refreshAuth();
+      console.log('Successfully updated quiz status');
 
-      const quizRef = doc(db!, 'quizzes', quizId);
-      const newStatus = currentStatus === 'in-progress' ? 'completed' : 'in-progress';
-      
-      console.log('Updating quiz status in Firebase:', {
-        quizId,
-        currentStatus,
-        newStatus
-      });
-      
-      await updateDoc(quizRef, {
-        status: newStatus
-      });
-      
-      console.log('Successfully updated quiz status in Firebase');
-      
       // Update local state
       setQuizzes(prevQuizzes =>
         prevQuizzes.map(quiz =>
