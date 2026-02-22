@@ -16,6 +16,7 @@ import {
 } from 'firebase/firestore';
 import Link from 'next/link';
 import CompleteQuizModal from '../../../components/quiz/CompleteQuizModal';
+import { useAuthReady } from '../../../lib/hooks/useAuthReady';
 
 interface Question {
   id: string;
@@ -51,6 +52,7 @@ export default function Quizzes() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [copiedQuizId, setCopiedQuizId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { refreshAuth } = useAuthReady();
 
   useEffect(() => {
     console.log('Quizzes component mounted:', {
@@ -112,6 +114,8 @@ export default function Quizzes() {
       if (typeof window === 'undefined') {
         throw new Error('Cannot update quiz status on server side');
       }
+
+      await refreshAuth();
 
       const quizRef = doc(db!, 'quizzes', quizId);
       const newStatus = currentStatus === 'in-progress' ? 'completed' : 'in-progress';

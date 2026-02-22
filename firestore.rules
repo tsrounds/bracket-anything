@@ -7,6 +7,8 @@ service cloud.firestore {
       return request.auth != null && (
         // Check for admin email
         request.auth.token.email == 'teddyrounds@gmail.com' ||
+        // Check for admin UID directly
+        request.auth.uid == 'ZwIFCnIuFubDarBgSYt6VHyyfgu1' ||
         // Or check for admin role in user profile
         (exists(/databases/$(database)/documents/userProfiles/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.role == 'admin')
@@ -42,8 +44,12 @@ service cloud.firestore {
         // Allow users to update their own submissions
         request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['submissions']) ||
-        // Allow admins to update quiz status and correct answers
-        isAdmin()
+        // Allow admins to update anything
+        isAdmin() ||
+        // Allow quiz creators to update their own quiz status/answers
+        (resource.data.creatorId == request.auth.uid &&
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['status', 'correctAnswers', 'completedAt']))
       );
       allow delete: if isAdmin();
     }
