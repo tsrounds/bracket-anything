@@ -118,7 +118,7 @@ export default function Quizzes() {
       const response = await fetch('/api/admin/quiz-status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quizId, newStatus, requestingUid: user?.uid }),
+        body: JSON.stringify({ quizId, newStatus }),
       });
 
       if (!response.ok) {
