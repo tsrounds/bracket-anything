@@ -157,93 +157,35 @@ export default function Quizzes() {
 
     try {
       setUpdating(selectedQuiz.id);
-      const quizRef = doc(db!, 'quizzes', selectedQuiz.id);
-      
+
       console.log('Submitting answers for quiz:', {
         quizId: selectedQuiz.id,
         quizTitle: selectedQuiz.title,
         answers
       });
-      
-      // First, update the quiz status and correct answers
-      try {
-        await updateDoc(quizRef, {
-          status: 'completed',
-          correctAnswers: answers,
-          completedAt: new Date().toISOString()
-        });
-        console.log('Successfully updated quiz status and answers');
-      } catch (error) {
-        console.error('Error updating quiz document:', error);
-        throw new Error('Failed to update quiz status');
-      }
-      
-      // Then, get all submissions for this quiz
-      const submissionsRef = collection(db!, 'submissions');
-      const submissionsQuery = query(submissionsRef, where('quizId', '==', selectedQuiz.id));
-      const submissionsSnapshot = await getDocs(submissionsQuery);
-      
-      // Calculate scores for each submission
-      const scoreUpdates = submissionsSnapshot.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => {
-        const submission = doc.data() as Submission;
-        let score = 0;
-        console.log('Calculating score for submission:', {
-          submissionId: doc.id,
-          userName: submission.userName,
-          answers: submission.answers
-        });
-        
-        Object.entries(submission.answers).forEach(([questionId, answer]) => {
-          const correctAnswer = answers[questionId];
-          const participantAnswer = answer.trim();
-          const isCorrect = Array.isArray(correctAnswer)
-            ? correctAnswer.some(ca => ca.trim() === participantAnswer)
-            : participantAnswer === (correctAnswer as string).trim();
-          const question = selectedQuiz.questions.find(q => q.id === questionId);
-          console.log('Checking answer:', {
-            questionId,
-            userAnswer: answer,
-            correctAnswer,
-            isCorrect,
-            questionPoints: question?.points
-          });
-          
-          if (isCorrect && question) {
-            score += question.points;
-          }
-        });
-        
-        console.log('Final score calculated:', {
-          submissionId: doc.id,
-          userName: submission.userName,
-          score
-        });
-        
-        return { docRef: doc.ref, score };
+
+      const response = await fetch('/api/admin/quiz-complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          quizId: selectedQuiz.id,
+          answers,
+          questions: selectedQuiz.questions,
+        }),
       });
-      
-      // Update all submissions with their scores
-      try {
-        await Promise.all(
-          scoreUpdates.map(async ({ docRef, score }: { docRef: DocumentReference, score: number }) => {
-            console.log('Updating submission score:', {
-              submissionId: docRef.id,
-              score
-            });
-            await updateDoc(docRef, { score });
-          })
-        );
-        console.log('Successfully updated all submission scores:', scoreUpdates);
-      } catch (error) {
-        console.error('Error updating submission scores:', error);
-        // Don't throw here, as the quiz is already marked as completed
+
+      if (!response.ok) {
+        const { error } = await response.json();
+        throw new Error(error || 'Failed to complete quiz');
       }
-      
+
+      console.log('Successfully completed quiz');
+
       // Update local state
       setQuizzes(prevQuizzes =>
         prevQuizzes.map(quiz =>
-          quiz.id === selectedQuiz.id 
-            ? { ...quiz, status: 'completed', correctAnswers: answers } 
+          quiz.id === selectedQuiz.id
+            ? { ...quiz, status: 'completed', correctAnswers: answers }
             : quiz
         )
       );
