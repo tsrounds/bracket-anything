@@ -113,5 +113,43 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == uid;
       allow write: if false; // Server only
     }
+
+    // ---- WC 2026 prediction game ------------------------------------
+    // Tournament reference data: world-readable, server-only writes.
+    match /tournaments/{tournamentId} {
+      allow read: if true;
+      allow write: if false;
+
+      match /matches/{matchId}    { allow read: if true; allow write: if false; }
+      match /standings/{groupId}  { allow read: if true; allow write: if false; }
+      match /meta/{docId}         { allow read: if true; allow write: if false; }
+    }
+
+    // Pools: world-readable, creator-editable for the wildcard prop only.
+    match /pools/{poolId} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.createdBy == request.auth.uid;
+      allow update: if request.auth != null
+        && resource.data.createdBy == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['propsConfig']);
+      allow delete: if false;
+
+      // Entries: each user owns their own entry doc (id == uid).
+      // Score field is server-written only.
+      match /entries/{entryId} {
+        allow read: if true;
+        allow create: if request.auth != null
+          && request.auth.uid == entryId
+          && request.resource.data.userId == request.auth.uid;
+        allow update: if request.auth != null
+          && request.auth.uid == entryId
+          && resource.data.locked == false
+          && !request.resource.data.diff(resource.data).affectedKeys()
+               .hasAny(['score', 'lastScoredAt']);
+        allow delete: if false;
+      }
+    }
   }
-} 
+}
