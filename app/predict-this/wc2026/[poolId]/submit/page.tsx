@@ -20,6 +20,7 @@ import {
   WILDCARD_CAP,
 } from '@/app/lib/wc2026/types';
 import { GROUP_SEED, TEAM_FALLBACK } from '@/app/lib/wc2026/constants';
+import AvatarSelector from '@/app/components/AvatarSelector';
 import Breadcrumb from '../../components/Breadcrumb';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
@@ -27,6 +28,7 @@ import GroupRanker from '../../components/GroupRanker';
 import KnockoutBracket, { BracketState } from '../../components/KnockoutBracket';
 import PropsCards from '../../components/PropsCards';
 import { useAvatarName } from '../../hooks/useAvatarName';
+import { seedR32 } from '../../lib/seedR32';
 
 type Phase = 'name' | 'groups' | 'knockout' | 'props' | 'review';
 
@@ -135,23 +137,30 @@ function Shell({
 
 function NameAvatarStep({ onSave }: { onSave: (p: { name: string; avatar: string | null }) => void }) {
   const [name, setName] = useState('');
+  const [avatar, setAvatar] = useState<string | null>(null);
   return (
     <Card className="mt-6 p-6">
       <h2 className="text-xl font-semibold">Who are you?</h2>
       <p className="mt-1 text-sm text-neutral-500">Shown on the leaderboard.</p>
+      <div className="mt-5 flex justify-center">
+        <AvatarSelector
+          onAvatarSelect={(p) => setAvatar(p)}
+          initialAvatar={avatar ?? undefined}
+        />
+      </div>
       <input
         type="text"
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder="Your name"
-        className="mt-4 w-full rounded-xl border border-neutral-300 px-3 py-2 focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+        className="mt-5 w-full rounded-xl border border-neutral-300 px-3 py-2 focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
         maxLength={40}
       />
       <Button
         fullWidth
         className="mt-4"
         disabled={!name.trim()}
-        onClick={() => onSave({ name: name.trim(), avatar: null })}
+        onClick={() => onSave({ name: name.trim(), avatar })}
       >
         Continue
       </Button>
@@ -396,27 +405,10 @@ function KnockoutPhase({
   onBack: () => void;
   onComplete: (kp: Entry['knockoutPicks']) => void;
 }) {
-  // Seed R32: 12 winners + 12 runners-up + 8 wildcards in entry.wildcards.
+  // Seed R32 so winners never face their own-group runners.
   const r32Initial = useMemo(() => {
     if (entry.knockoutPicks.R32.length === 32) return entry.knockoutPicks.R32;
-    const winners: string[] = [];
-    const runners: string[] = [];
-    for (const gid of GROUP_IDS) {
-      const r = entry.groupRanks[gid] ?? [];
-      if (r[0]) winners.push(r[0]);
-      if (r[1]) runners.push(r[1]);
-    }
-    const wildcards = entry.wildcards.slice(0, 8);
-    // Seed simply: alternate winners + runners + wildcards into 32 slots.
-    const r32: string[] = [];
-    for (let i = 0; i < winners.length; i++) {
-      r32.push(winners[i], runners[i] ?? '');
-    }
-    while (r32.length < 32 && wildcards.length) {
-      r32.push(wildcards.shift()!);
-    }
-    while (r32.length < 32) r32.push('');
-    return r32;
+    return seedR32(entry.groupRanks, entry.wildcards);
   }, [entry]);
 
   const [state, setState] = useState<BracketState>({
