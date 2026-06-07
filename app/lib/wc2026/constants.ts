@@ -5,21 +5,21 @@
 import { GroupId, Team } from './types';
 import { FIFA_NAME_BY_CODE, FIFA_RANK_BY_CODE } from './fifa-rankings';
 
-// Placeholder group seed. Replace with the actual Dec 2025 draw.
-// 48 teams across 12 groups of 4. Codes are FIFA tri-codes.
+// WC 2026 group seed. Source: CBS Sports group-stage screenshots from the
+// Dec 2025 draw. Teams are listed in draw / pot order (pot 1 first).
 export const GROUP_SEED: Record<GroupId, string[]> = {
-  A: ['MEX', 'TBA1', 'TBA2', 'TBA3'],
-  B: ['CAN', 'TBA4', 'TBA5', 'TBA6'],
-  C: ['USA', 'TBA7', 'TBA8', 'TBA9'],
-  D: ['TBA10', 'TBA11', 'TBA12', 'TBA13'],
-  E: ['TBA14', 'TBA15', 'TBA16', 'TBA17'],
-  F: ['TBA18', 'TBA19', 'TBA20', 'TBA21'],
-  G: ['TBA22', 'TBA23', 'TBA24', 'TBA25'],
-  H: ['TBA26', 'TBA27', 'TBA28', 'TBA29'],
-  I: ['TBA30', 'TBA31', 'TBA32', 'TBA33'],
-  J: ['TBA34', 'TBA35', 'TBA36', 'TBA37'],
-  K: ['TBA38', 'TBA39', 'TBA40', 'TBA41'],
-  L: ['TBA42', 'TBA43', 'TBA44', 'TBA45'],
+  A: ['MEX', 'KOR', 'RSA', 'CZE'],
+  B: ['CAN', 'SUI', 'QAT', 'BIH'],
+  C: ['BRA', 'MAR', 'SCO', 'HAI'],
+  D: ['USA', 'AUS', 'PAR', 'TUR'],
+  E: ['GER', 'ECU', 'CIV', 'CUW'],
+  F: ['NED', 'JPN', 'SWE', 'TUN'],
+  G: ['BEL', 'IRN', 'EGY', 'NZL'],
+  H: ['ESP', 'URU', 'KSA', 'CPV'],
+  I: ['FRA', 'SEN', 'NOR', 'IRQ'],
+  J: ['ARG', 'AUT', 'ALG', 'JOR'],
+  K: ['POR', 'COL', 'COD', 'UZB'],
+  L: ['ENG', 'CRO', 'GHA', 'PAN'],
 };
 
 // Team metadata derived from the FIFA ranking snapshot in ./fifa-rankings.ts.
