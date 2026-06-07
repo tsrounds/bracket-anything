@@ -97,6 +97,13 @@ export async function getOrCreateEntry(
       goldenBoot: null, darkHorse: null, usmntCeiling: null,
       biggestUpset: null, totalGoals: null, wildcardAnswer: null,
     },
+    // Initialise with a zeroed breakdown so the leaderboard's
+    // orderBy('score.total') query includes this entry before the cron runs.
+    score: {
+      groupStage: 0, wildcards: 0,
+      R32: 0, R16: 0, QF: 0, SF: 0, F: 0,
+      championBonus: 0, props: 0, total: 0,
+    },
   };
   await setDoc(ref, entry);
   return entry;
