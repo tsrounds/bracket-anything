@@ -3,6 +3,7 @@
 // before launch. Keep as TBD placeholders until the draw is published.
 
 import { GroupId, Team } from './types';
+import { FIFA_NAME_BY_CODE, FIFA_RANK_BY_CODE } from './fifa-rankings';
 
 // Placeholder group seed. Replace with the actual Dec 2025 draw.
 // 48 teams across 12 groups of 4. Codes are FIFA tri-codes.
@@ -21,13 +22,20 @@ export const GROUP_SEED: Record<GroupId, string[]> = {
   L: ['TBA42', 'TBA43', 'TBA44', 'TBA45'],
 };
 
-// Bare-minimum team metadata used by the UI when the live ranks API is
-// unavailable. The live sports API remains the source of truth.
-export const TEAM_FALLBACK: Record<string, Pick<Team, 'name' | 'fifaRank'>> = {
-  USA: { name: 'United States', fifaRank: 16 },
-  MEX: { name: 'Mexico',        fifaRank: 17 },
-  CAN: { name: 'Canada',        fifaRank: 28 },
-};
+// Team metadata derived from the FIFA ranking snapshot in ./fifa-rankings.ts.
+// The live sports API remains the source of truth at runtime; this fallback
+// powers the UI (team rows, dark-horse filter, biggest-upset scoring) when
+// the API is unreachable or doesn't expose ranks.
+export const TEAM_FALLBACK: Record<string, Pick<Team, 'name' | 'fifaRank'>> = (() => {
+  const out: Record<string, Pick<Team, 'name' | 'fifaRank'>> = {};
+  for (const code of Object.keys(FIFA_RANK_BY_CODE)) {
+    out[code] = {
+      name: FIFA_NAME_BY_CODE[code],
+      fifaRank: FIFA_RANK_BY_CODE[code],
+    };
+  }
+  return out;
+})();
 
 export const USMNT_CODE = 'USA';
 
