@@ -4,5 +4,11 @@
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "framework": "nextjs",
-  "regions": ["sfo1"]
-} 
+  "regions": ["sfo1"],
+  "crons": [
+    {
+      "path": "/api/cron/wc2026",
+      "schedule": "*/15 * * * *"
+    }
+  ]
+}
